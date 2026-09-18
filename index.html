@@ -1,0 +1,808 @@
+<!DOCTYPE html>
+<html lang="az">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Mağaza İdarəetmə Paneli (Canlı)</title>
+  <meta name="theme-color" content="#4f46e5">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#eef2ff',
+              100: '#e0e7ff',
+              500: '#6366f1',
+              600: '#4f46e5',
+              700: '#4338ca',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <!-- Supabase JS Client v2 -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- SheetJS (Excel Çıxarış) -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+  <style>
+    body {
+      font-family: 'Outfit', sans-serif;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .mono {
+      font-family: 'JetBrains Mono', monospace;
+    }
+    /* Pulsing realtime dot */
+    @keyframes pulse-green {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(1.15); }
+    }
+    .live-dot {
+      animation: pulse-green 2s infinite ease-in-out;
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen pb-14 antialiased selection:bg-brand-500 selection:text-white">
+
+  <!-- ================= TOPBAR ================= -->
+  <header class="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-slate-200 px-4 py-3 shadow-sm">
+    <div class="max-w-5xl mx-auto flex items-center justify-between gap-3">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center text-white font-bold shadow-md shadow-indigo-200">
+          <i class="fa-solid fa-store text-lg"></i>
+        </div>
+        <div>
+          <h1 class="text-base font-extrabold text-slate-900 leading-tight">Mağaza Paneli</h1>
+          <div class="flex items-center gap-1.5 text-xs text-slate-500">
+            <span id="liveBadgeDot" class="w-2 h-2 rounded-full bg-emerald-500 live-dot"></span>
+            <span id="liveStatusText" class="font-medium text-emerald-600">Canlı Bağlantı</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <!-- Refresh Button -->
+        <button onclick="loadData(true)" class="w-9 h-9 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center transition active:scale-95" title="Məlumatları yenilə">
+          <i class="fa-solid fa-rotate-right text-sm"></i>
+        </button>
+        <!-- Settings Modal Button -->
+        <button onclick="openSettingsModal()" class="w-9 h-9 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center transition active:scale-95" title="Supabase Ayarları">
+          <i class="fa-solid fa-gear text-sm"></i>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ================= TOAST NOTIFICATION ================= -->
+  <div id="toast" class="fixed top-16 right-4 left-4 sm:left-auto sm:w-96 z-50 transform -translate-y-24 opacity-0 transition-all duration-300 pointer-events-none">
+    <div class="bg-slate-900 text-white px-4 py-3 rounded-xl shadow-xl flex items-center gap-3 border border-slate-700">
+      <div id="toastIcon" class="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
+        <i class="fa-solid fa-bell"></i>
+      </div>
+      <div class="flex-1 text-xs">
+        <div id="toastTitle" class="font-bold">Yeni Əməliyyat</div>
+        <div id="toastMsg" class="text-slate-300 text-[11px]">Kassada yeni satış qeydə alındı.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= MAIN CONTAINER ================= -->
+  <main class="max-w-5xl mx-auto px-4 py-5 space-y-5">
+
+    <!-- XÜLASƏ KARTLARI (SUMMARY CARDS) -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <!-- Nağd Satış -->
+      <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm relative overflow-hidden">
+        <div class="flex items-center justify-between mb-2">
+          <span class="text-xs font-semibold text-slate-500">Nağd Satış</span>
+          <div class="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-sm">
+            <i class="fa-solid fa-money-bill-wave"></i>
+          </div>
+        </div>
+        <div id="statNeqd" class="text-xl sm:text-2xl font-black text-slate-900 mono">0.00 ₼</div>
+        <div class="text-[11px] text-emerald-600 font-medium mt-1 flex items-center gap-1">
+          <i class="fa-solid fa-arrow-trend-up"></i> Toplam kassa
+        </div>
+      </div>
+
+      <!-- Nisyə Borc -->
+      <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm relative overflow-hidden">
+        <div class="flex items-center justify-between mb-2">
+          <span class="text-xs font-semibold text-slate-500">Nisyə Satış</span>
+          <div class="w-8 h-8 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center text-sm">
+            <i class="fa-solid fa-handshake"></i>
+          </div>
+        </div>
+        <div id="statNisye" class="text-xl sm:text-2xl font-black text-slate-900 mono">0.00 ₼</div>
+        <div class="text-[11px] text-amber-600 font-medium mt-1 flex items-center gap-1">
+          <i class="fa-solid fa-clock"></i> Verilmiş borc
+        </div>
+      </div>
+
+      <!-- Qaytarılmalar -->
+      <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm relative overflow-hidden">
+        <div class="flex items-center justify-between mb-2">
+          <span class="text-xs font-semibold text-slate-500">Qaytarılma</span>
+          <div class="w-8 h-8 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center text-sm">
+            <i class="fa-solid fa-arrow-rotate-left"></i>
+          </div>
+        </div>
+        <div id="statQaytarma" class="text-xl sm:text-2xl font-black text-slate-900 mono">0.00 ₼</div>
+        <div class="text-[11px] text-rose-600 font-medium mt-1 flex items-center gap-1">
+          <i class="fa-solid fa-box-open"></i> Geri verilən
+        </div>
+      </div>
+
+      <!-- Xalis Kassa (Nağd - Qaytarma) -->
+      <div class="bg-gradient-to-br from-indigo-600 to-violet-700 p-4 rounded-2xl shadow-md text-white relative overflow-hidden">
+        <div class="flex items-center justify-between mb-2">
+          <span class="text-xs font-semibold text-indigo-100">Xalis Kassa</span>
+          <div class="w-8 h-8 rounded-xl bg-white/10 text-white flex items-center justify-center text-sm">
+            <i class="fa-solid fa-cash-register"></i>
+          </div>
+        </div>
+        <div id="statNetKassa" class="text-xl sm:text-2xl font-black mono">0.00 ₼</div>
+        <div class="text-[11px] text-indigo-200 font-medium mt-1">
+          Nağd - Qaytarma
+        </div>
+      </div>
+    </div>
+
+    <!-- QRAFİK KARTI (TOP SELLING PRODUCTS) -->
+    <div class="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/80 shadow-sm">
+      <div class="flex items-center justify-between mb-3">
+        <div class="flex items-center gap-2">
+          <div class="w-7 h-7 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center text-xs">
+            <i class="fa-solid fa-chart-pie"></i>
+          </div>
+          <h2 class="text-sm font-bold text-slate-900">Ən Çox Satılan Məhsullar</h2>
+        </div>
+        <span class="text-xs text-slate-400 font-medium" id="chartPeriodLabel">Filtr üzrə</span>
+      </div>
+      <div class="h-56 relative">
+        <canvas id="topProductsChart"></canvas>
+      </div>
+    </div>
+
+    <!-- SÜZGƏCLƏR VƏ AXTARIŞ (FILTERS) -->
+    <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm space-y-3">
+      
+      <!-- Sürətli Tarix Seçimləri (Pills) -->
+      <div class="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none text-xs font-semibold">
+        <button onclick="setDatePreset('today')" id="preset_today" class="px-3 py-1.5 rounded-xl bg-brand-600 text-white transition whitespace-nowrap">Bugün</button>
+        <button onclick="setDatePreset('yesterday')" id="preset_yesterday" class="px-3 py-1.5 rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200 transition whitespace-nowrap">Dünən</button>
+        <button onclick="setDatePreset('this_week')" id="preset_this_week" class="px-3 py-1.5 rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200 transition whitespace-nowrap">Bu Həftə</button>
+        <button onclick="setDatePreset('this_month')" id="preset_this_month" class="px-3 py-1.5 rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200 transition whitespace-nowrap">Bu Ay</button>
+        <button onclick="setDatePreset('all')" id="preset_all" class="px-3 py-1.5 rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200 transition whitespace-nowrap">Bütün Tarix</button>
+      </div>
+
+      <!-- Fərdi Tarix Aralığı (Datepicker) -->
+      <div class="grid grid-cols-2 gap-2 text-xs">
+        <div>
+          <label class="block text-[11px] font-medium text-slate-500 mb-1">Başlanğıc Tarixi</label>
+          <input type="date" id="filterStartDate" onchange="onCustomDateChange()" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-2 text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-500">
+        </div>
+        <div>
+          <label class="block text-[11px] font-medium text-slate-500 mb-1">Bitiş Tarixi</label>
+          <input type="date" id="filterEndDate" onchange="onCustomDateChange()" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-2 text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-500">
+        </div>
+      </div>
+
+      <!-- Dropdown-lar: Sahib və Əməliyyat Tipi -->
+      <div class="grid grid-cols-2 gap-2 text-xs">
+        <div>
+          <label class="block text-[11px] font-medium text-slate-500 mb-1">Sahib Seçimi</label>
+          <select id="filterSahib" onchange="applyFilters()" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-2 text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-500">
+            <option value="ALL">Bütün Sahibləri</option>
+            <option value="Elşən">Elşən</option>
+            <option value="Gülnarə">Gülnarə</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-[11px] font-medium text-slate-500 mb-1">Əməliyyat Tipi</label>
+          <select id="filterType" onchange="applyFilters()" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-2 text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-500">
+            <option value="ALL">Bütün Əməliyyatlar</option>
+            <option value="Nağd">Yalnız Nağd</option>
+            <option value="Nisyə">Yalnız Nisyə</option>
+            <option value="QAYTARILMA">Qaytarılmalar</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Anlıq Axtarış -->
+      <div class="relative">
+        <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+        <input type="text" id="filterSearch" oninput="applyFilters()" placeholder="Məhsul adı, müştəri və ya qəbz no ilə axtar..." class="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-3 py-2.5 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500">
+      </div>
+    </div>
+
+    <!-- ƏMƏLİYYATLAR SİYAHISI BAŞLIĞI VƏ EXCEL DÜYMƏSİ -->
+    <div class="flex items-center justify-between gap-3">
+      <div>
+        <h3 class="text-sm font-bold text-slate-900">Əməliyyatlar Siyahısı</h3>
+        <p id="recordCountText" class="text-xs text-slate-400">Yüklənir...</p>
+      </div>
+
+      <!-- Excel Çıxarış Düyməsi -->
+      <button onclick="exportToExcel()" class="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-2 rounded-xl text-xs font-bold shadow-sm transition active:scale-95">
+        <i class="fa-solid fa-file-excel text-sm"></i>
+        <span>Excel Yüklə</span>
+      </button>
+    </div>
+
+    <!-- ƏMƏLİYYATLAR SİYAHISI (TRANSACTION CARDS) -->
+    <div id="transactionsList" class="space-y-2.5">
+      <!-- JavaScript ilə doldurulacaq -->
+    </div>
+
+    <!-- BOŞ VƏZİYYƏT (EMPTY STATE) -->
+    <div id="emptyState" class="hidden bg-white rounded-2xl border border-slate-200 p-8 text-center">
+      <div class="w-12 h-12 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center mx-auto mb-3 text-xl">
+        <i class="fa-regular fa-folder-open"></i>
+      </div>
+      <div class="text-sm font-bold text-slate-700">Heç bir qeyd tapılmadı</div>
+      <div class="text-xs text-slate-400 mt-1">Seçilmiş filtrlərə uyğun heç bir satış və ya əməliyyat mövcud deyil.</div>
+    </div>
+
+  </main>
+
+  <!-- ================= TƏNZİMLƏMƏLƏR MODALI ================= -->
+  <div id="settingsModal" class="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm hidden items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+        <div class="flex items-center gap-2.5">
+          <div class="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-sm">
+            <i class="fa-solid fa-cloud"></i>
+          </div>
+          <h3 class="text-base font-bold text-slate-900">Supabase Bağlantı Ayarları</h3>
+        </div>
+        <button onclick="closeSettingsModal()" class="text-slate-400 hover:text-slate-600 text-lg">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <div class="space-y-3 text-xs">
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">Supabase Project URL</label>
+          <input type="text" id="cfgSupabaseUrl" placeholder="https://xxxxxxxxxxxx.supabase.co" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-500 font-mono text-[11px]">
+        </div>
+
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">Supabase Anon Key (public)</label>
+          <textarea id="cfgSupabaseKey" rows="3" placeholder="eyJhbGciOiJIUzI1NiIsIn..." class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-500 font-mono text-[10px]"></textarea>
+        </div>
+
+        <p class="text-[11px] text-slate-500 leading-relaxed">
+          Bu açarlar yalnız telefonunuzun brauzer yaddaşında (LocalStorage) saxlanılır. Dəyişdirdikdən sonra <b>Yadda Saxla</b> düyməsini vurun.
+        </p>
+      </div>
+
+      <div class="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+        <button onclick="closeSettingsModal()" class="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 transition">İmtina</button>
+        <button onclick="saveSupabaseSettings()" class="px-5 py-2 rounded-xl text-xs font-bold bg-brand-600 hover:bg-brand-700 text-white shadow-sm transition">Yadda Saxla</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= JAVASCRIPT ================= -->
+  <script>
+    // Standart / Default açarlar
+    const DEFAULT_SUPABASE_URL = "https://rwsdahmgallpyzonucpb.supabase.co";
+    const DEFAULT_SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ3c2RhaG1nYWxscHl6b251Y3BiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk3MDQzMzYsImV4cCI6MjEwNTI4MDMzNn0.jczh4ZJr0-JeBijwmXXXydqycj6YXDARCuxkiyAWKDM";
+
+    let supabaseClient = null;
+    let allRecords = [];
+    let filteredRecords = [];
+    let topChart = null;
+
+    // Səhifə açıldıqda
+    document.addEventListener('DOMContentLoaded', () => {
+      initDatePresetToday();
+      initSupabase();
+      initChart();
+    });
+
+    // Supabase Client-in başladılması
+    function initSupabase() {
+      const savedUrl = localStorage.getItem('supabase_url') || DEFAULT_SUPABASE_URL;
+      const savedKey = localStorage.getItem('supabase_key') || DEFAULT_SUPABASE_KEY;
+
+      document.getElementById('cfgSupabaseUrl').value = savedUrl;
+      document.getElementById('cfgSupabaseKey').value = savedKey;
+
+      if (!savedUrl || !savedKey) {
+        document.getElementById('liveStatusText').innerText = "Açar daxil edilməyib";
+        document.getElementById('liveStatusText').className = "font-medium text-amber-600";
+        document.getElementById('liveBadgeDot').className = "w-2 h-2 rounded-full bg-amber-500";
+        openSettingsModal();
+        return;
+      }
+
+      try {
+        supabaseClient = window.supabase.createClient(savedUrl.trim(), savedKey.trim());
+        
+        document.getElementById('liveStatusText').innerText = "Canlı Bağlantı";
+        document.getElementById('liveStatusText').className = "font-medium text-emerald-600";
+        document.getElementById('liveBadgeDot').className = "w-2 h-2 rounded-full bg-emerald-500 live-dot";
+
+        // Məlumatları yüklə
+        loadData();
+
+        // Realtime dinləyici aktivləşdir
+        subscribeRealtime();
+      } catch (err) {
+        console.error("Supabase init error:", err);
+        showToast("Bağlantı Xətası", err.message, "rose");
+      }
+    }
+
+    // Realtime Dinləmə (Canlı Yenilənmə)
+    function subscribeRealtime() {
+      if (!supabaseClient) return;
+
+      supabaseClient
+        .channel('public:satislar')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'satislar' }, (payload) => {
+          console.log("Realtime event received:", payload);
+          
+          if (payload.eventType === 'INSERT') {
+            const newItem = payload.new;
+            allRecords.unshift(newItem);
+            showToast("Yeni Əməliyyat!", `${newItem.mehsul_adi} - ${newItem.mebleg} ₼ (${newItem.odenis_novu})`, "emerald");
+          } else if (payload.eventType === 'DELETE') {
+            const oldId = payload.old.id;
+            allRecords = allRecords.filter(r => r.id !== oldId);
+            showToast("Silinmə", `Əməliyyat silindi.`, "amber");
+          } else if (payload.eventType === 'UPDATE') {
+            const updated = payload.new;
+            const index = allRecords.findIndex(r => r.id === updated.id);
+            if (index !== -1) allRecords[index] = updated;
+          }
+
+          applyFilters();
+        })
+        .subscribe((status) => {
+          console.log("Realtime subscription status:", status);
+        });
+    }
+
+    // Supabase-dən məlumatları yükləmə
+    async function loadData(manual = false) {
+      if (!supabaseClient) return;
+
+      if (manual) {
+        document.getElementById('recordCountText').innerText = "Yenilənir...";
+      }
+
+      try {
+        const { data, error } = await supabaseClient
+          .from('satislar')
+          .select('*')
+          .order('tarix', { ascending: false })
+          .limit(1000);
+
+        if (error) throw error;
+
+        allRecords = data || [];
+        applyFilters();
+
+        if (manual) {
+          showToast("Yeniləndi", "Məlumatlar uğurla yeniləndi.", "emerald");
+        }
+      } catch (err) {
+        console.error("Məlumat yüklənmə xətası:", err);
+        showToast("Xəta", "Məlumatları oxumaq mümkün olmadı: " + err.message, "rose");
+      }
+    }
+
+    // Süzgəcləri tətbiq etmə
+    function applyFilters() {
+      const search = document.getElementById('filterSearch').value.toLowerCase().trim();
+      const sahib = document.getElementById('filterSahib').value;
+      const type = document.getElementById('filterType').value;
+      const startDateStr = document.getElementById('filterStartDate').value;
+      const endDateStr = document.getElementById('filterEndDate').value;
+
+      let start = startDateStr ? new Date(startDateStr + 'T00:00:00') : null;
+      let end = endDateStr ? new Date(endDateStr + 'T23:59:59.999') : null;
+
+      filteredRecords = allRecords.filter(item => {
+        const itemDate = new Date(item.tarix);
+
+        // Tarix filtri
+        if (start && itemDate < start) return false;
+        if (end && itemDate > end) return false;
+
+        // Sahib filtri
+        if (sahib !== 'ALL') {
+          if ((item.sahib_adi || '').toLowerCase() !== sahib.toLowerCase()) {
+            return false;
+          }
+        }
+
+        // Əməliyyat tipi / Ödəniş növü filtri
+        if (type !== 'ALL') {
+          if (type === 'QAYTARILMA') {
+            if (item.emeliyyat_tipi !== 'QAYTARILMA') return false;
+          } else {
+            if (item.emeliyyat_tipi === 'QAYTARILMA') return false;
+            if (item.odenis_novu !== type) return false;
+          }
+        }
+
+        // Axtarış filtri
+        if (search) {
+          const mAd = (item.mehsul_adi || '').toLowerCase();
+          const musteri = (item.musteri_adi || '').toLowerCase();
+          const qebz = (item.yerli_satis_id || '').toLowerCase();
+          if (!mAd.includes(search) && !musteri.includes(search) && !qebz.includes(search)) {
+            return false;
+          }
+        }
+
+        return true;
+      });
+
+      updateStats();
+      renderTransactions();
+      updateChart();
+    }
+
+    // Kart statistikalarını hesablama
+    function updateStats() {
+      let totalNeqd = 0;
+      let totalNisye = 0;
+      let totalQaytarma = 0;
+
+      filteredRecords.forEach(item => {
+        const val = parseFloat(item.mebleg) || 0;
+        if (item.emeliyyat_tipi === 'QAYTARILMA') {
+          totalQaytarma += Math.abs(val);
+        } else if (item.odenis_novu === 'Nisyə') {
+          totalNisye += val;
+        } else {
+          totalNeqd += val;
+        }
+      });
+
+      const netKassa = totalNeqd - totalQaytarma;
+
+      document.getElementById('statNeqd').innerText = totalNeqd.toFixed(2) + ' ₼';
+      document.getElementById('statNisye').innerText = totalNisye.toFixed(2) + ' ₼';
+      document.getElementById('statQaytarma').innerText = totalQaytarma.toFixed(2) + ' ₼';
+      document.getElementById('statNetKassa').innerText = netKassa.toFixed(2) + ' ₼';
+      document.getElementById('recordCountText').innerText = `${filteredRecords.length} əməliyyat tapıldı`;
+    }
+
+    // Əməliyyatlar siyahısının ekrana çıxarılması
+    function renderTransactions() {
+      const container = document.getElementById('transactionsList');
+      const emptyState = document.getElementById('emptyState');
+
+      if (filteredRecords.length === 0) {
+        container.innerHTML = '';
+        emptyState.classList.remove('hidden');
+        return;
+      }
+
+      emptyState.classList.add('hidden');
+
+      const html = filteredRecords.map(item => {
+        const isReturn = item.emeliyyat_tipi === 'QAYTARILMA';
+        const isCredit = item.odenis_novu === 'Nisyə' && !isReturn;
+        const val = parseFloat(item.mebleg) || 0;
+        const qty = parseFloat(item.say) || 1;
+
+        // Tarix formatı
+        const dateObj = new Date(item.tarix);
+        const timeStr = dateObj.toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' });
+        const dateStr = dateObj.toLocaleDateString('az-AZ', { day: '2-digit', month: '2-digit', year: 'numeric' });
+
+        // Badge-lər
+        let typeBadge = '';
+        if (isReturn) {
+          typeBadge = `<span class="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold bg-rose-50 text-rose-600 border border-rose-200">Qaytarılma</span>`;
+        } else if (isCredit) {
+          typeBadge = `<span class="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">Nisyə</span>`;
+        } else {
+          typeBadge = `<span class="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">Nağd</span>`;
+        }
+
+        // Sahib Badge
+        let sahibBadge = '';
+        if (item.sahib_adi === 'Elşən') {
+          sahibBadge = `<span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-indigo-50 text-indigo-700">Elşən</span>`;
+        } else if (item.sahib_adi === 'Gülnarə') {
+          sahibBadge = `<span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-pink-50 text-pink-700">Gülnarə</span>`;
+        }
+
+        // Məbləğ rəngi
+        const amountClass = isReturn ? 'text-rose-600' : 'text-slate-900';
+        const sign = isReturn ? '-' : '+';
+
+        return `
+          <div class="bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-sm flex items-center justify-between gap-3 hover:border-slate-300 transition">
+            <div class="space-y-1 flex-1 min-w-0">
+              <div class="flex items-center gap-1.5 flex-wrap">
+                <span class="font-bold text-xs sm:text-sm text-slate-800 truncate">${escapeHtml(item.mehsul_adi)}</span>
+                ${typeBadge}
+                ${sahibBadge}
+              </div>
+              <div class="flex items-center gap-2 text-[11px] text-slate-400">
+                <span><i class="fa-regular fa-clock text-[10px] mr-0.5"></i> ${timeStr} • ${dateStr}</span>
+                <span>•</span>
+                <span class="font-medium text-slate-600">${qty} ədəd</span>
+              </div>
+              ${item.musteri_adi ? `
+                <div class="text-[11px] text-amber-800 font-semibold flex items-center gap-1 mt-0.5">
+                  <i class="fa-solid fa-user text-[10px]"></i> Müştəri: ${escapeHtml(item.musteri_adi)}
+                </div>
+              ` : ''}
+            </div>
+
+            <div class="text-right flex-shrink-0">
+              <div class="text-sm sm:text-base font-black mono ${amountClass}">
+                ${sign}${Math.abs(val).toFixed(2)} ₼
+              </div>
+              <div class="text-[10px] text-slate-400">Qəbz: #${escapeHtml((item.yerli_satis_id || '').substring(0, 8))}</div>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      container.innerHTML = html;
+    }
+
+    // Chart.js Qrafikinin qurulması və yenilənməsi
+    function initChart() {
+      const ctx = document.getElementById('topProductsChart').getContext('2d');
+      topChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: [],
+          datasets: [{
+            label: 'Satış Sayı',
+            data: [],
+            backgroundColor: 'rgba(99, 102, 241, 0.85)',
+            borderRadius: 8,
+            borderSkipped: false
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: (context) => ` Satış: ${context.parsed.y} ədəd`
+              }
+            }
+          },
+          scales: {
+            x: {
+              grid: { display: false },
+              ticks: { font: { size: 10, family: 'Outfit' }, maxRotation: 25 }
+            },
+            y: {
+              beginAtZero: true,
+              grid: { color: 'rgba(226, 232, 240, 0.6)' },
+              ticks: { font: { size: 10, family: 'Outfit' }, stepSize: 1 }
+            }
+          }
+        }
+      });
+    }
+
+    function updateChart() {
+      if (!topChart) return;
+
+      const productCounts = {};
+      filteredRecords.forEach(item => {
+        if (item.emeliyyat_tipi === 'QAYTARILMA') return;
+        const name = item.mehsul_adi || 'Naməlum';
+        const count = parseFloat(item.say) || 1;
+        productCounts[name] = (productCounts[name] || 0) + count;
+      });
+
+      // Ən çox satılan top 6 məhsul
+      const sorted = Object.entries(productCounts)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 6);
+
+      topChart.data.labels = sorted.map(i => i[0].length > 15 ? i[0].substring(0, 15) + '...' : i[0]);
+      topChart.data.datasets[0].data = sorted.map(i => i[1]);
+      topChart.update();
+    }
+
+    // EXCEL ÇIXARIŞI (.XLSX)
+    function exportToExcel() {
+      if (filteredRecords.length === 0) {
+        showToast("Xəbərdarlıq", "Çıxarış üçün heç bir qeyd yoxdur.", "amber");
+        return;
+      }
+
+      const rows = filteredRecords.map((item, idx) => {
+        const dateObj = new Date(item.tarix);
+        const formattedDate = dateObj.toLocaleDateString('az-AZ') + ' ' + dateObj.toLocaleTimeString('az-AZ');
+        
+        return {
+          "№": idx + 1,
+          "Tarix": formattedDate,
+          "Qəbz ID": item.yerli_satis_id || '',
+          "Məhsul Adı": item.mehsul_adi || '',
+          "Miqdar (Say)": parseFloat(item.say) || 0,
+          "Məbləğ (AZN)": parseFloat(item.mebleg) || 0,
+          "Əməliyyat Tipi": item.emeliyyat_tipi || 'SATIŞ',
+          "Ödəniş Növü": item.odenis_novu || 'Nağd',
+          "Müştəri Adı": item.musteri_adi || '-',
+          "Sahib": item.sahib_adi || 'Bilinmir'
+        };
+      });
+
+      const worksheet = XLSX.utils.json_to_sheet(rows);
+      // Sütun genişlikləri
+      worksheet['!cols'] = [
+        { wch: 5 },  // №
+        { wch: 20 }, // Tarix
+        { wch: 36 }, // Qəbz ID
+        { wch: 28 }, // Məhsul Adı
+        { wch: 12 }, // Say
+        { wch: 14 }, // Məbləğ
+        { wch: 16 }, // Əməliyyat
+        { wch: 14 }, // Ödəniş
+        { wch: 22 }, // Müştəri
+        { wch: 14 }  // Sahib
+      ];
+
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Satışlar");
+
+      const todayStr = new Date().toISOString().split('T')[0];
+      const fileName = `Magaza_Hesabat_${todayStr}.xlsx`;
+      XLSX.writeFile(workbook, fileName);
+
+      showToast("Excel Hazırdır!", `${fileName} faylı endirildi.`, "emerald");
+    }
+
+    // TARİX PRESETLƏRİ
+    function initDatePresetToday() {
+      setDatePreset('today');
+    }
+
+    function setDatePreset(type) {
+      const today = new Date();
+      const todayStr = today.toISOString().split('T')[0];
+
+      // Düymə stillərini yenilə
+      ['today', 'yesterday', 'this_week', 'this_month', 'all'].forEach(k => {
+        const btn = document.getElementById(`preset_${k}`);
+        if (btn) {
+          if (k === type) {
+            btn.className = "px-3 py-1.5 rounded-xl bg-brand-600 text-white transition whitespace-nowrap shadow-sm";
+          } else {
+            btn.className = "px-3 py-1.5 rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200 transition whitespace-nowrap";
+          }
+        }
+      });
+
+      if (type === 'today') {
+        document.getElementById('filterStartDate').value = todayStr;
+        document.getElementById('filterEndDate').value = todayStr;
+      } else if (type === 'yesterday') {
+        const y = new Date();
+        y.setDate(y.getDate() - 1);
+        const yStr = y.toISOString().split('T')[0];
+        document.getElementById('filterStartDate').value = yStr;
+        document.getElementById('filterEndDate').value = yStr;
+      } else if (type === 'this_week') {
+        const firstDay = new Date(today.setDate(today.getDate() - today.getDay() + (today.getDay() === 0 ? -6 : 1)));
+        document.getElementById('filterStartDate').value = firstDay.toISOString().split('T')[0];
+        document.getElementById('filterEndDate').value = new Date().toISOString().split('T')[0];
+      } else if (type === 'this_month') {
+        const firstDate = new Date(today.getFullYear(), today.getMonth(), 1);
+        document.getElementById('filterStartDate').value = firstDate.toISOString().split('T')[0];
+        document.getElementById('filterEndDate').value = new Date().toISOString().split('T')[0];
+      } else if (type === 'all') {
+        document.getElementById('filterStartDate').value = '';
+        document.getElementById('filterEndDate').value = '';
+      }
+
+      applyFilters();
+    }
+
+    function onCustomDateChange() {
+      // Preset stillərini söndür
+      ['today', 'yesterday', 'this_week', 'this_month', 'all'].forEach(k => {
+        const btn = document.getElementById(`preset_${k}`);
+        if (btn) btn.className = "px-3 py-1.5 rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200 transition whitespace-nowrap";
+      });
+      applyFilters();
+    }
+
+    // Tənzimləmələr Modalı Funksiyaları
+    function openSettingsModal() {
+      const modal = document.getElementById('settingsModal');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+
+    function closeSettingsModal() {
+      const modal = document.getElementById('settingsModal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    }
+
+    function saveSupabaseSettings() {
+      const url = document.getElementById('cfgSupabaseUrl').value.trim();
+      const key = document.getElementById('cfgSupabaseKey').value.trim();
+
+      if (!url || !key) {
+        alert("Zəhmət olmasa həm URL, həm də Anon Key daxil edin.");
+        return;
+      }
+
+      localStorage.setItem('supabase_url', url);
+      localStorage.setItem('supabase_key', key);
+      closeSettingsModal();
+      showToast("Ayarlar Saxlanıldı", "Supabase bağlantısı yenidən başladılır...", "emerald");
+      initSupabase();
+    }
+
+    // Toast Bildiriş
+    let toastTimer = null;
+    function showToast(title, msg, color = 'emerald') {
+      const toast = document.getElementById('toast');
+      const toastTitle = document.getElementById('toastTitle');
+      const toastMsg = document.getElementById('toastMsg');
+      const toastIcon = document.getElementById('toastIcon');
+
+      toastTitle.innerText = title;
+      toastMsg.innerText = msg;
+
+      if (color === 'rose') {
+        toastIcon.className = "w-8 h-8 rounded-lg bg-rose-500/20 text-rose-400 flex items-center justify-center";
+      } else if (color === 'amber') {
+        toastIcon.className = "w-8 h-8 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center";
+      } else {
+        toastIcon.className = "w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center";
+      }
+
+      toast.classList.remove('-translate-y-24', 'opacity-0');
+      toast.classList.add('translate-y-0', 'opacity-100');
+
+      if (toastTimer) clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => {
+        toast.classList.add('-translate-y-24', 'opacity-0');
+        toast.classList.remove('translate-y-0', 'opacity-100');
+      }, 3500);
+    }
+
+    // XSS qoruması
+    function escapeHtml(text) {
+      if (!text) return '';
+      return String(text)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+  </script>
+</body>
+</html>
