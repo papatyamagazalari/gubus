@@ -1114,84 +1114,151 @@
       mainChart.update();
     }
 
-    // 11. EXCEL ÇIXARIŞI (Maya və Qazanc Sütunları ilə)
+    // 11. EXCEL ÇIXARIŞI (WPF Hesabatlar ilə 1:1 eyni və A4 formatına tam uyğun)
     function exportToExcel() {
-      if (filteredRecords.length === 0) {
+      if (!filteredRecords || filteredRecords.length === 0) {
         showToast("Xəbərdarlıq", "Çıxarış üçün heç bir qeyd yoxdur.", "amber");
         return;
       }
 
+      // Hesabat xülasə məlumatları (WPF HesabatViewModel ilə 1:1 eyni)
       let totalSatis = 0;
       let totalMaya = 0;
       let totalQazanc = 0;
+      let totalSay = 0;
 
-      const rows = filteredRecords.map((item, idx) => {
+      filteredRecords.forEach(item => {
+        const isReturn = item.emeliyyat_tipi === 'QAYTARILMA';
+        const mebleg = parseFloat(item.mebleg) || 0;
+        const maya = parseFloat(item.alis_qiymeti) || 0;
+        const qazanc = (item.qazanc !== undefined && item.qazanc !== null) ? parseFloat(item.qazanc) : (mebleg - maya);
+        const say = parseFloat(item.say) || 0;
+
+        if (isReturn) {
+          totalSatis -= Math.abs(mebleg);
+          totalMaya -= Math.abs(maya);
+          totalQazanc -= Math.abs(qazanc);
+          totalSay -= Math.abs(say);
+        } else {
+          totalSatis += mebleg;
+          totalMaya += maya;
+          totalQazanc += qazanc;
+          totalSay += say;
+        }
+      });
+
+      const filterStart = document.getElementById('filterStartDate').value;
+      const filterEnd = document.getElementById('filterEndDate').value;
+      let dateRangeStr = "Bütün Tarixlər";
+      if (filterStart && filterEnd) {
+        dateRangeStr = `${filterStart} - ${filterEnd}`;
+      } else if (filterStart) {
+        dateRangeStr = `${filterStart} - dən sonra`;
+      } else if (filterEnd) {
+        dateRangeStr = `${filterEnd} - ə qədər`;
+      }
+
+      const odenisFilter = document.getElementById('filterType').value;
+      const odenisText = (odenisFilter && odenisFilter !== 'ALL') ? ` (${odenisFilter})` : '';
+
+      // Cədvəl sətirlər massivi (WPF Excel xülasə bloku və sütunları)
+      const wsData = [
+        [`Hesabat Tarixi: ${dateRangeStr}${odenisText}`],
+        [`Toplam Satış Qiyməti: ${totalSatis.toFixed(2)} AZN`],
+        [`Toplam Məhsul Dəyəri: ${totalMaya.toFixed(2)} AZN`],
+        [`Toplam Xalis Gəlir: ${totalQazanc.toFixed(2)} AZN`],
+        [`Kassadakı Ümumi Məbləğ: ${totalSatis.toFixed(2)} AZN`],
+        [`Toplam Satılan Miqdar: ${totalSay.toFixed(2)}`],
+        [], // Boş sətir
+        // Sütun Başlıqları (WPF ilə 1:1 eyni)
+        ["Barkod", "Tarix", "Məhsul", "Miqdar", "Satış", "Maya", "Gəlir", "Sahib", "Müştəri"]
+      ];
+
+      // Məlumat sətirləri (WPF Hesabat cədvəli kimi)
+      filteredRecords.forEach(item => {
+        const isReturn = item.emeliyyat_tipi === 'QAYTARILMA';
         const dateObj = new Date(item.tarix);
-        const formattedDate = dateObj.toLocaleDateString('az-AZ') + ' ' + dateObj.toLocaleTimeString('az-AZ');
+        const tarihText = dateObj.toLocaleDateString('az-AZ', { day: '2-digit', month: '2-digit', year: 'numeric' });
+        
+        let mehsulAd = item.mehsul_adi || '';
+        if (mehsulAd.length > 30) {
+          mehsulAd = mehsulAd.substring(0, 25) + '...';
+        }
+
+        // Barkod / Qəbz nömrəsi (maks 12 simvol, sütunu genişləndirməmək üçün)
+        let barkod = item.yerli_satis_id ? String(item.yerli_satis_id) : '';
+        if (barkod.length > 12) {
+          barkod = barkod.substring(barkod.length - 12);
+        }
+
+        const sayVal = parseFloat(item.say) || 0;
+        const miqdarText = isReturn ? `${sayVal} (Qaytarma)` : sayVal;
+
         const mebleg = parseFloat(item.mebleg) || 0;
         const maya = parseFloat(item.alis_qiymeti) || 0;
         const qazanc = (item.qazanc !== undefined && item.qazanc !== null) ? parseFloat(item.qazanc) : (mebleg - maya);
 
-        totalSatis += mebleg;
-        totalMaya += maya;
-        totalQazanc += qazanc;
-
-        return {
-          "№": idx + 1,
-          "Tarix": formattedDate,
-          "Qəbz ID": item.yerli_satis_id || '',
-          "Məhsul Adı": item.mehsul_adi || '',
-          "Say": parseFloat(item.say) || 0,
-          "Satış Məbləği (AZN)": mebleg,
-          "Maya Dəyəri (AZN)": maya,
-          "Xalis Qazanc (AZN)": qazanc,
-          "Əməliyyat": item.emeliyyat_tipi || 'SATIŞ',
-          "Ödəniş": item.odenis_novu || 'Nağd',
-          "Müştəri": item.musteri_adi || '-',
-          "Sahib": item.sahib_adi || 'Bilinmir'
-        };
+        wsData.push([
+          barkod,
+          tarihText,
+          mehsulAd,
+          miqdarText,
+          Number((isReturn ? -Math.abs(mebleg) : mebleg).toFixed(2)),
+          Number((isReturn ? -Math.abs(maya) : maya).toFixed(2)),
+          Number((isReturn ? -Math.abs(qazanc) : qazanc).toFixed(2)),
+          item.sahib_adi || '',
+          item.musteri_adi || ''
+        ]);
       });
 
-      // Yekun Sətir
-      rows.push({
-        "№": "YEKUN",
-        "Tarix": "-",
-        "Qəbz ID": "-",
-        "Məhsul Adı": "CƏMİ TOPLAM",
-        "Say": "-",
-        "Satış Məbləği (AZN)": totalSatis,
-        "Maya Dəyəri (AZN)": totalMaya,
-        "Xalis Qazanc (AZN)": totalQazanc,
-        "Əməliyyat": "-",
-        "Ödəniş": "-",
-        "Müştəri": "-",
-        "Sahib": "-"
-      });
+      const worksheet = XLSX.utils.aoa_to_sheet(wsData);
 
-      const worksheet = XLSX.utils.json_to_sheet(rows);
+      // Sütun enləri (WPF kimi lakonik və A4 vərəqinə tam sığacaq ölçüdə)
       worksheet['!cols'] = [
-        { wch: 8 },  // №
-        { wch: 20 }, // Tarix
-        { wch: 34 }, // Qəbz
-        { wch: 28 }, // Məhsul
-        { wch: 10 }, // Say
-        { wch: 18 }, // Satış Məbləği
-        { wch: 16 }, // Maya
-        { wch: 16 }, // Qazanc
-        { wch: 14 }, // Əməliyyat
-        { wch: 12 }, // Ödəniş
-        { wch: 22 }, // Müştəri
-        { wch: 14 }  // Sahib
+        { wch: 14 }, // Barkod
+        { wch: 13 }, // Tarix
+        { wch: 25 }, // Məhsul
+        { wch: 12 }, // Miqdar
+        { wch: 10 }, // Satış
+        { wch: 10 }, // Maya
+        { wch: 10 }, // Gəlir
+        { wch: 12 }, // Sahib
+        { wch: 14 }  // Müştəri
       ];
 
-      const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, "Satış və Qazanc");
+      // A4 Landscape və Səhifəyə Sığdırma Tənzimləmələri
+      worksheet['!pageSetup'] = {
+        orientation: 'landscape',
+        paperSize: 9, // 9 = A4 formatı
+        fitToWidth: 1, // Eninə tam 1 səhifəyə sığdır
+        fitToHeight: 0 // Sətir sayına görə şaquli axış
+      };
 
-      const todayStr = new Date().toISOString().split('T')[0];
-      const fileName = `Papatya_Qazanc_Hesabati_${todayStr}.xlsx`;
+      // Çap haşiyələri (margins)
+      worksheet['!margins'] = {
+        left: 0.4,
+        right: 0.4,
+        top: 0.4,
+        bottom: 0.4,
+        header: 0.2,
+        footer: 0.2
+      };
+
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Hesabat");
+
+      const now = new Date();
+      const timeStamp = now.getFullYear().toString() +
+        String(now.getMonth() + 1).padStart(2, '0') +
+        String(now.getDate()).padStart(2, '0') +
+        String(now.getHours()).padStart(2, '0') +
+        String(now.getMinutes()).padStart(2, '0') +
+        String(now.getSeconds()).padStart(2, '0');
+
+      const fileName = `hesabat_${timeStamp}.xlsx`;
       XLSX.writeFile(workbook, fileName);
 
-      showToast("Excel Hazırdır!", `${fileName} endirildi.`, "emerald");
+      showToast("Excel İxrac Edildi", `${fileName} yükləndi.`, "emerald");
     }
 
     // 12. Tarix Presetləri
