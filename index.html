@@ -1,221 +1,386 @@
 <!DOCTYPE html>
-<html lang="az">
+<html lang="az" class="h-full">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Mağaza İdarəetmə Paneli (Canlı)</title>
+  <title>Papatya POS • Canlı Mobil İdarəetmə</title>
   <meta name="theme-color" content="#4f46e5">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <!-- Tailwind CSS -->
+
+  <!-- Tailwind CSS CDN with typography & custom config -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
+      darkMode: 'class',
       theme: {
         extend: {
           colors: {
             brand: {
-              50: '#eef2ff',
-              100: '#e0e7ff',
+              50: '#f5f7ff',
+              100: '#ebf0fe',
               500: '#6366f1',
               600: '#4f46e5',
               700: '#4338ca',
+              800: '#3730a3',
+              900: '#312e81',
             }
+          },
+          fontFamily: {
+            sans: ['Outfit', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
           }
         }
       }
     }
   </script>
+
   <!-- Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
   <!-- FontAwesome Icons -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
   <!-- Supabase JS Client v2 -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <!-- Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <!-- SheetJS (Excel Çıxarış) -->
+  <!-- SheetJS (Excel) -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
   <style>
     body {
       font-family: 'Outfit', sans-serif;
       -webkit-tap-highlight-color: transparent;
+      user-select: none;
     }
-    .mono {
-      font-family: 'JetBrains Mono', monospace;
+    .mono { font-family: 'JetBrains Mono', monospace; }
+    
+    /* Smooth glowing animations */
+    @keyframes pulse-dot {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.3); opacity: 0.4; }
     }
-    /* Pulsing realtime dot */
-    @keyframes pulse-green {
-      0%, 100% { opacity: 1; transform: scale(1); }
-      50% { opacity: 0.4; transform: scale(1.15); }
-    }
-    .live-dot {
-      animation: pulse-green 2s infinite ease-in-out;
-    }
+    .pulse-dot { animation: pulse-dot 2s infinite ease-in-out; }
+    
+    /* Custom subtle scrollbars */
+    ::-webkit-scrollbar { width: 4px; height: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(156, 163, 175, 0.4); border-radius: 4px; }
   </style>
 </head>
-<body class="bg-slate-50 text-slate-800 min-h-screen pb-14 antialiased selection:bg-brand-500 selection:text-white">
+<body class="bg-slate-100 dark:bg-slate-950 text-slate-800 dark:text-slate-100 min-h-screen flex flex-col antialiased transition-colors duration-200">
 
-  <!-- ================= TOPBAR ================= -->
-  <header class="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-slate-200 px-4 py-3 shadow-sm">
-    <div class="max-w-5xl mx-auto flex items-center justify-between gap-3">
-      <div class="flex items-center gap-3">
-        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center text-white font-bold shadow-md shadow-indigo-200">
-          <i class="fa-solid fa-store text-lg"></i>
+  <!-- ================= GİRİŞ / KİLİD EKRANI (LOCK SCREEN) ================= -->
+  <div id="lockScreen" class="fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-2xl flex items-center justify-center p-4 transition-all duration-300">
+    <div class="bg-white dark:bg-slate-900 rounded-3xl max-w-sm w-full p-7 shadow-2xl border border-slate-200 dark:border-slate-800 text-center space-y-5">
+      
+      <div class="w-16 h-16 rounded-3xl bg-gradient-to-tr from-indigo-600 to-violet-500 text-white flex items-center justify-center mx-auto text-2xl shadow-xl shadow-indigo-500/30">
+        <i class="fa-solid fa-lock"></i>
+      </div>
+
+      <div>
+        <h2 class="text-xl font-black text-slate-900 dark:text-white">Papatya POS</h2>
+        <p class="text-xs text-slate-400 mt-1">İdarəetmə panelinə daxil olmaq üçün parolu yazın</p>
+      </div>
+
+      <form onsubmit="checkPassword(event)" class="space-y-3">
+        <div class="relative">
+          <input type="password" id="passInput" placeholder="Giriş parolu..." autofocus 
+                 class="w-full bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-2xl px-4 py-3 text-center text-sm font-bold text-slate-800 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500 transition">
         </div>
-        <div>
-          <h1 class="text-base font-extrabold text-slate-900 leading-tight">Mağaza Paneli</h1>
-          <div class="flex items-center gap-1.5 text-xs text-slate-500">
-            <span id="liveBadgeDot" class="w-2 h-2 rounded-full bg-emerald-500 live-dot"></span>
-            <span id="liveStatusText" class="font-medium text-emerald-600">Canlı Bağlantı</span>
-          </div>
+
+        <div id="passError" class="text-xs text-rose-500 font-bold hidden">
+          <i class="fa-solid fa-circle-exclamation mr-1"></i> Səhv parol! Yenidən cəhd edin.
         </div>
-      </div>
 
-      <div class="flex items-center gap-2">
-        <!-- Refresh Button -->
-        <button onclick="loadData(true)" class="w-9 h-9 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center transition active:scale-95" title="Məlumatları yenilə">
-          <i class="fa-solid fa-rotate-right text-sm"></i>
+        <button type="submit" class="w-full py-3 rounded-2xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white font-bold text-sm shadow-lg shadow-indigo-600/25 active:scale-95 transition cursor-pointer">
+          Daxil Ol <i class="fa-solid fa-arrow-right ml-1"></i>
         </button>
-        <!-- Settings Modal Button -->
-        <button onclick="openSettingsModal()" class="w-9 h-9 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center transition active:scale-95" title="Supabase Ayarları">
-          <i class="fa-solid fa-gear text-sm"></i>
-        </button>
-      </div>
-    </div>
-  </header>
+      </form>
 
-  <!-- ================= TOAST NOTIFICATION ================= -->
-  <div id="toast" class="fixed top-16 right-4 left-4 sm:left-auto sm:w-96 z-50 transform -translate-y-24 opacity-0 transition-all duration-300 pointer-events-none">
-    <div class="bg-slate-900 text-white px-4 py-3 rounded-xl shadow-xl flex items-center gap-3 border border-slate-700">
-      <div id="toastIcon" class="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
-        <i class="fa-solid fa-bell"></i>
-      </div>
-      <div class="flex-1 text-xs">
-        <div id="toastTitle" class="font-bold">Yeni Əməliyyat</div>
-        <div id="toastMsg" class="text-slate-300 text-[11px]">Kassada yeni satış qeydə alındı.</div>
+      <div class="text-[11px] text-slate-400">
+        Yalnız səlahiyyətli mağaza rəhbərliyi üçün
       </div>
     </div>
   </div>
 
-  <!-- ================= MAIN CONTAINER ================= -->
-  <main class="max-w-5xl mx-auto px-4 py-5 space-y-5">
-
-    <!-- XÜLASƏ KARTLARI (SUMMARY CARDS) -->
-    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
-      <!-- Nağd Satış -->
-      <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm relative overflow-hidden">
-        <div class="flex items-center justify-between mb-2">
-          <span class="text-xs font-semibold text-slate-500">Nağd Satış</span>
-          <div class="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-sm">
-            <i class="fa-solid fa-money-bill-wave"></i>
-          </div>
+  <!-- ================= TOPBAR ================= -->
+  <header class="sticky top-0 z-40 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-b border-slate-200/80 dark:border-slate-800 px-4 py-3 shadow-xs">
+    <div class="max-w-6xl mx-auto flex items-center justify-between gap-3">
+      
+      <!-- Logo & Status -->
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-indigo-600 via-indigo-500 to-violet-500 flex items-center justify-center text-white shadow-lg shadow-indigo-500/25">
+          <i class="fa-solid fa-store text-lg"></i>
         </div>
-        <div id="statNeqd" class="text-xl sm:text-2xl font-black text-slate-900 mono">0.00 ₼</div>
-        <div class="text-[11px] text-emerald-600 font-medium mt-1 flex items-center gap-1">
-          <i class="fa-solid fa-arrow-trend-up"></i> Toplam kassa
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="text-base font-black tracking-tight text-slate-900 dark:text-white">Papatya POS</h1>
+            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 text-indigo-600 dark:bg-indigo-950/70 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800">Canlı PRO</span>
+          </div>
+          <div class="flex items-center gap-1.5 text-xs">
+            <span id="liveDot" class="w-2 h-2 rounded-full bg-emerald-500 pulse-dot"></span>
+            <span id="liveStatus" class="font-semibold text-emerald-600 dark:text-emerald-400 text-[11px]">Realtime Aktiv</span>
+          </div>
         </div>
       </div>
 
-      <!-- Nisyə Borc -->
-      <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm relative overflow-hidden">
-        <div class="flex items-center justify-between mb-2">
-          <span class="text-xs font-semibold text-slate-500">Nisyə Satış</span>
-          <div class="w-8 h-8 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center text-sm">
-            <i class="fa-solid fa-handshake"></i>
+      <!-- Action Buttons -->
+      <div class="flex items-center gap-1.5 sm:gap-2">
+        <!-- Sound Toggle Button -->
+        <button onclick="toggleAudio()" id="audioBtn" class="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-600 dark:text-slate-300 flex items-center justify-center transition active:scale-90" title="Kassa səsi">
+          <i class="fa-solid fa-volume-high text-sm"></i>
+        </button>
+
+        <!-- Dark Mode Toggle Button -->
+        <button onclick="toggleDarkMode()" class="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-600 dark:text-slate-300 flex items-center justify-center transition active:scale-90" title="Qaranlıq rejim">
+          <i id="themeIcon" class="fa-solid fa-moon text-sm"></i>
+        </button>
+
+        <!-- Refresh Button -->
+        <button onclick="loadData(true)" class="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-600 dark:text-slate-300 flex items-center justify-center transition active:scale-90" title="Yenilə">
+          <i class="fa-solid fa-rotate-right text-sm"></i>
+        </button>
+
+        <!-- Settings Button -->
+        <button onclick="openSettingsModal()" class="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-600 dark:text-slate-300 flex items-center justify-center transition active:scale-90" title="Ayarlar">
+          <i class="fa-solid fa-gear text-sm"></i>
+        </button>
+
+        <!-- Logout Button -->
+        <button onclick="logout()" class="w-9 h-9 rounded-xl bg-rose-50 dark:bg-rose-950/50 hover:bg-rose-100 text-rose-600 dark:text-rose-400 flex items-center justify-center transition active:scale-90" title="Sistemdən Çıxış (Kilidlə)">
+          <i class="fa-solid fa-arrow-right-from-bracket text-sm"></i>
+        </button>
+      </div>
+
+    </div>
+  </header>
+
+  <!-- ================= TOAST NOTIFICATION ================= -->
+  <div id="toast" class="fixed top-16 right-4 left-4 sm:left-auto sm:w-96 z-50 transform -translate-y-28 opacity-0 transition-all duration-300 pointer-events-none">
+    <div class="bg-slate-900/95 dark:bg-slate-800/95 backdrop-blur-md text-white p-4 rounded-2xl shadow-2xl flex items-center gap-3.5 border border-slate-700/60">
+      <div id="toastIcon" class="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-base flex-shrink-0">
+        <i class="fa-solid fa-bell"></i>
+      </div>
+      <div class="flex-1 min-w-0">
+        <div id="toastTitle" class="font-bold text-xs">Yeni Əməliyyat</div>
+        <div id="toastMsg" class="text-slate-300 text-[11px] truncate mt-0.5">Satış qeydə alındı.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= MAIN CONTENT ================= -->
+  <main class="max-w-6xl mx-auto px-4 py-5 space-y-5 flex-1 w-full">
+
+    <!-- 1. GƏLİR VƏ MAYA İCMAL KARTLARI (PROFIT & COST HERO) -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
+      
+      <!-- Xalis Qazanc (Əsas Parlaq Kart) -->
+      <div class="col-span-2 sm:col-span-1 bg-gradient-to-br from-emerald-600 via-teal-600 to-emerald-700 rounded-3xl p-4 sm:p-5 text-white shadow-lg shadow-emerald-600/20 relative overflow-hidden flex flex-col justify-between">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-bold uppercase tracking-wider text-emerald-100">Xalis Qazanc</span>
+          <div class="w-8 h-8 rounded-xl bg-white/15 backdrop-blur-md flex items-center justify-center text-sm">
+            <i class="fa-solid fa-sack-dollar"></i>
           </div>
         </div>
-        <div id="statNisye" class="text-xl sm:text-2xl font-black text-slate-900 mono">0.00 ₼</div>
-        <div class="text-[11px] text-amber-600 font-medium mt-1 flex items-center gap-1">
-          <i class="fa-solid fa-clock"></i> Verilmiş borc
+        <div class="my-2">
+          <div id="statQazanc" class="text-2xl sm:text-3xl font-black mono tracking-tight">0.00 ₼</div>
+          <div class="flex items-center gap-1.5 text-xs text-emerald-100 mt-1 font-semibold">
+            <span id="statMarja" class="px-2 py-0.5 rounded-lg bg-white/20 text-[11px]">0.0% Marja</span>
+            <span>Təmiz Gəlir</span>
+          </div>
         </div>
       </div>
 
-      <!-- Qaytarılmalar -->
-      <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm relative overflow-hidden">
-        <div class="flex items-center justify-between mb-2">
-          <span class="text-xs font-semibold text-slate-500">Qaytarılma</span>
-          <div class="w-8 h-8 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center text-sm">
-            <i class="fa-solid fa-arrow-rotate-left"></i>
+      <!-- Toplam Dövriyyə (Satış) -->
+      <div class="bg-white dark:bg-slate-900 rounded-3xl p-4 sm:p-5 border border-slate-200/80 dark:border-slate-800 shadow-xs flex flex-col justify-between">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-bold text-slate-500 dark:text-slate-400">Ümumi Dövriyyə</span>
+          <div class="w-8 h-8 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center text-sm">
+            <i class="fa-solid fa-chart-line"></i>
           </div>
         </div>
-        <div id="statQaytarma" class="text-xl sm:text-2xl font-black text-slate-900 mono">0.00 ₼</div>
-        <div class="text-[11px] text-rose-600 font-medium mt-1 flex items-center gap-1">
-          <i class="fa-solid fa-box-open"></i> Geri verilən
+        <div class="my-2">
+          <div id="statDovriyye" class="text-xl sm:text-2xl font-black mono text-slate-900 dark:text-white">0.00 ₼</div>
+          <div class="text-[11px] text-indigo-600 dark:text-indigo-400 font-semibold mt-0.5">
+            <span id="statSatisSayı">0</span> əməliyyat
+          </div>
+        </div>
+      </div>
+
+      <!-- Toplam Maya Dəyəri (Alış) -->
+      <div class="bg-white dark:bg-slate-900 rounded-3xl p-4 sm:p-5 border border-slate-200/80 dark:border-slate-800 shadow-xs flex flex-col justify-between">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-bold text-slate-500 dark:text-slate-400">Toplam Maya (Alış)</span>
+          <div class="w-8 h-8 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 flex items-center justify-center text-sm">
+            <i class="fa-solid fa-boxes-stacked"></i>
+          </div>
+        </div>
+        <div class="my-2">
+          <div id="statMaya" class="text-xl sm:text-2xl font-black mono text-slate-800 dark:text-slate-200">0.00 ₼</div>
+          <div class="text-[11px] text-slate-500 dark:text-slate-400 font-medium mt-0.5">
+            Malların maya xərci
+          </div>
         </div>
       </div>
 
       <!-- Xalis Kassa (Nağd - Qaytarma) -->
-      <div class="bg-gradient-to-br from-indigo-600 to-violet-700 p-4 rounded-2xl shadow-md text-white relative overflow-hidden">
-        <div class="flex items-center justify-between mb-2">
-          <span class="text-xs font-semibold text-indigo-100">Xalis Kassa</span>
-          <div class="w-8 h-8 rounded-xl bg-white/10 text-white flex items-center justify-center text-sm">
+      <div class="col-span-2 sm:col-span-1 bg-gradient-to-br from-indigo-600 via-indigo-700 to-violet-800 rounded-3xl p-4 sm:p-5 text-white shadow-lg shadow-indigo-600/20 relative overflow-hidden flex flex-col justify-between">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-bold uppercase tracking-wider text-indigo-200">Kassadakı Nağd</span>
+          <div class="w-8 h-8 rounded-xl bg-white/15 backdrop-blur-md flex items-center justify-center text-sm">
             <i class="fa-solid fa-cash-register"></i>
           </div>
         </div>
-        <div id="statNetKassa" class="text-xl sm:text-2xl font-black mono">0.00 ₼</div>
-        <div class="text-[11px] text-indigo-200 font-medium mt-1">
-          Nağd - Qaytarma
-        </div>
-      </div>
-    </div>
-
-    <!-- QRAFİK KARTI (TOP SELLING PRODUCTS) -->
-    <div class="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/80 shadow-sm">
-      <div class="flex items-center justify-between mb-3">
-        <div class="flex items-center gap-2">
-          <div class="w-7 h-7 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center text-xs">
-            <i class="fa-solid fa-chart-pie"></i>
+        <div class="my-2">
+          <div id="statNetKassa" class="text-2xl sm:text-3xl font-black mono tracking-tight">0.00 ₼</div>
+          <div class="text-xs text-indigo-200 font-semibold mt-1">
+            Nağd kassa balansı
           </div>
-          <h2 class="text-sm font-bold text-slate-900">Ən Çox Satılan Məhsullar</h2>
         </div>
-        <span class="text-xs text-slate-400 font-medium" id="chartPeriodLabel">Filtr üzrə</span>
       </div>
-      <div class="h-56 relative">
-        <canvas id="topProductsChart"></canvas>
+
+    </div>
+
+    <!-- 2. ALT DETALLAR KARTLARI (Nağd, Nisyə, Qaytarma, Sahib Bölgüsü) -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
+      
+      <!-- Nağd Satış -->
+      <div class="bg-white dark:bg-slate-900 p-3.5 rounded-2xl border border-slate-200/80 dark:border-slate-800 flex items-center justify-between">
+        <div>
+          <div class="text-[11px] font-semibold text-slate-400">Nağd Satış</div>
+          <div id="statNeqd" class="text-base font-black mono text-emerald-600 dark:text-emerald-400 mt-0.5">0.00 ₼</div>
+        </div>
+        <div class="w-7 h-7 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 flex items-center justify-center text-xs">
+          <i class="fa-solid fa-money-bill-wave"></i>
+        </div>
+      </div>
+
+      <!-- Nisyə Satış -->
+      <div class="bg-white dark:bg-slate-900 p-3.5 rounded-2xl border border-slate-200/80 dark:border-slate-800 flex items-center justify-between">
+        <div>
+          <div class="text-[11px] font-semibold text-slate-400">Nisyə (Borc)</div>
+          <div id="statNisye" class="text-base font-black mono text-amber-600 dark:text-amber-400 mt-0.5">0.00 ₼</div>
+        </div>
+        <div class="w-7 h-7 rounded-lg bg-amber-50 dark:bg-amber-950/60 text-amber-600 flex items-center justify-center text-xs">
+          <i class="fa-solid fa-handshake"></i>
+        </div>
+      </div>
+
+      <!-- Qaytarılmalar -->
+      <div class="bg-white dark:bg-slate-900 p-3.5 rounded-2xl border border-slate-200/80 dark:border-slate-800 flex items-center justify-between">
+        <div>
+          <div class="text-[11px] font-semibold text-slate-400">Qaytarılan Mal</div>
+          <div id="statQaytarma" class="text-base font-black mono text-rose-600 dark:text-rose-400 mt-0.5">0.00 ₼</div>
+        </div>
+        <div class="w-7 h-7 rounded-lg bg-rose-50 dark:bg-rose-950/60 text-rose-600 flex items-center justify-center text-xs">
+          <i class="fa-solid fa-rotate-left"></i>
+        </div>
+      </div>
+
+      <!-- Orta Qəbz (Average Ticket) -->
+      <div class="bg-white dark:bg-slate-900 p-3.5 rounded-2xl border border-slate-200/80 dark:border-slate-800 flex items-center justify-between">
+        <div>
+          <div class="text-[11px] font-semibold text-slate-400">Orta Qəbz Məbləği</div>
+          <div id="statOrtaQebz" class="text-base font-black mono text-indigo-600 dark:text-indigo-400 mt-0.5">0.00 ₼</div>
+        </div>
+        <div class="w-7 h-7 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 flex items-center justify-center text-xs">
+          <i class="fa-solid fa-receipt"></i>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- 3. SAHİB BÖLGÜSÜ BANNERİ (Elşən vs Gülnarə) -->
+    <div class="grid grid-cols-2 gap-3">
+      <!-- Elşən -->
+      <div class="bg-gradient-to-r from-indigo-50 to-white dark:from-indigo-950/40 dark:to-slate-900 p-3.5 rounded-2xl border border-indigo-100 dark:border-indigo-900/60 flex items-center justify-between">
+        <div class="flex items-center gap-2.5">
+          <div class="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-black text-xs shadow-xs">
+            E
+          </div>
+          <div>
+            <div class="text-[11px] font-bold text-slate-600 dark:text-slate-400">Elşən</div>
+            <div id="statElsenQazanc" class="text-xs font-extrabold text-indigo-700 dark:text-indigo-300 mono">Qazanc: 0.00 ₼</div>
+          </div>
+        </div>
+        <div class="text-right">
+          <div id="statElsenSatish" class="text-xs font-black mono text-slate-900 dark:text-white">0.00 ₼</div>
+          <div class="text-[10px] text-slate-400">Satış</div>
+        </div>
+      </div>
+
+      <!-- Gülnarə -->
+      <div class="bg-gradient-to-r from-pink-50 to-white dark:from-pink-950/40 dark:to-slate-900 p-3.5 rounded-2xl border border-pink-100 dark:border-pink-900/60 flex items-center justify-between">
+        <div class="flex items-center gap-2.5">
+          <div class="w-8 h-8 rounded-xl bg-pink-600 text-white flex items-center justify-center font-black text-xs shadow-xs">
+            G
+          </div>
+          <div>
+            <div class="text-[11px] font-bold text-slate-600 dark:text-slate-400">Gülnarə</div>
+            <div id="statGulnareQazanc" class="text-xs font-extrabold text-pink-700 dark:text-pink-300 mono">Qazanc: 0.00 ₼</div>
+          </div>
+        </div>
+        <div class="text-right">
+          <div id="statGulnareSatish" class="text-xs font-black mono text-slate-900 dark:text-white">0.00 ₼</div>
+          <div class="text-[10px] text-slate-400">Satış</div>
+        </div>
       </div>
     </div>
 
-    <!-- SÜZGƏCLƏR VƏ AXTARIŞ (FILTERS) -->
-    <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm space-y-3">
+    <!-- 4. QRAFİKLƏR BÖLMƏSİ (İki Tab: Top Məhsullar & Saatlıq Aktivlik) -->
+    <div class="bg-white dark:bg-slate-900 rounded-3xl p-4 sm:p-5 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-3">
+      <div class="flex items-center justify-between flex-wrap gap-2">
+        <div class="flex items-center gap-2">
+          <button onclick="switchChartTab('products')" id="chartTabProducts" class="px-3 py-1.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/70 text-indigo-700 dark:text-indigo-300 font-bold text-xs transition">
+            <i class="fa-solid fa-trophy mr-1"></i> Top Məhsullar
+          </button>
+          <button onclick="switchChartTab('hourly')" id="chartTabHourly" class="px-3 py-1.5 rounded-xl text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 font-semibold text-xs transition">
+            <i class="fa-solid fa-clock mr-1"></i> Saatlıq Aktivlik
+          </button>
+        </div>
+        <span id="chartLabel" class="text-xs text-slate-400 font-medium">Filtrə uyğun</span>
+      </div>
+
+      <div class="h-60 relative w-full">
+        <canvas id="mainChart"></canvas>
+      </div>
+    </div>
+
+    <!-- 5. FİLTRLƏR VƏ AXTARIŞ BLOKU -->
+    <div class="bg-white dark:bg-slate-900 rounded-3xl p-4 sm:p-5 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-3.5">
       
-      <!-- Sürətli Tarix Seçimləri (Pills) -->
-      <div class="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none text-xs font-semibold">
-        <button onclick="setDatePreset('today')" id="preset_today" class="px-3 py-1.5 rounded-xl bg-brand-600 text-white transition whitespace-nowrap">Bugün</button>
-        <button onclick="setDatePreset('yesterday')" id="preset_yesterday" class="px-3 py-1.5 rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200 transition whitespace-nowrap">Dünən</button>
-        <button onclick="setDatePreset('this_week')" id="preset_this_week" class="px-3 py-1.5 rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200 transition whitespace-nowrap">Bu Həftə</button>
-        <button onclick="setDatePreset('this_month')" id="preset_this_month" class="px-3 py-1.5 rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200 transition whitespace-nowrap">Bu Ay</button>
-        <button onclick="setDatePreset('all')" id="preset_all" class="px-3 py-1.5 rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200 transition whitespace-nowrap">Bütün Tarix</button>
+      <!-- Sürətli Tarix Seçimləri (Pill-lər) -->
+      <div class="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none text-xs font-bold">
+        <button onclick="setDatePreset('today')" id="preset_today" class="px-3.5 py-2 rounded-2xl bg-brand-600 text-white transition whitespace-nowrap shadow-xs">Bugün</button>
+        <button onclick="setDatePreset('yesterday')" id="preset_yesterday" class="px-3.5 py-2 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 transition whitespace-nowrap">Dünən</button>
+        <button onclick="setDatePreset('this_week')" id="preset_this_week" class="px-3.5 py-2 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 transition whitespace-nowrap">Bu Həftə</button>
+        <button onclick="setDatePreset('this_month')" id="preset_this_month" class="px-3.5 py-2 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 transition whitespace-nowrap">Bu Ay</button>
+        <button onclick="setDatePreset('all')" id="preset_all" class="px-3.5 py-2 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 transition whitespace-nowrap">Hamısı</button>
       </div>
 
-      <!-- Fərdi Tarix Aralığı (Datepicker) -->
-      <div class="grid grid-cols-2 gap-2 text-xs">
+      <!-- Fərdi Tarix Aralığı & Süzgəclər -->
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-xs">
         <div>
-          <label class="block text-[11px] font-medium text-slate-500 mb-1">Başlanğıc Tarixi</label>
-          <input type="date" id="filterStartDate" onchange="onCustomDateChange()" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-2 text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-500">
+          <label class="block text-[11px] font-semibold text-slate-400 mb-1">Başlanğıc</label>
+          <input type="date" id="filterStartDate" onchange="onCustomDateChange()" class="w-full bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl px-2.5 py-2 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-500">
         </div>
         <div>
-          <label class="block text-[11px] font-medium text-slate-500 mb-1">Bitiş Tarixi</label>
-          <input type="date" id="filterEndDate" onchange="onCustomDateChange()" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-2 text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-500">
+          <label class="block text-[11px] font-semibold text-slate-400 mb-1">Bitiş</label>
+          <input type="date" id="filterEndDate" onchange="onCustomDateChange()" class="w-full bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl px-2.5 py-2 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-500">
         </div>
-      </div>
-
-      <!-- Dropdown-lar: Sahib və Əməliyyat Tipi -->
-      <div class="grid grid-cols-2 gap-2 text-xs">
         <div>
-          <label class="block text-[11px] font-medium text-slate-500 mb-1">Sahib Seçimi</label>
-          <select id="filterSahib" onchange="applyFilters()" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-2 text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-500">
+          <label class="block text-[11px] font-semibold text-slate-400 mb-1">Sahib</label>
+          <select id="filterSahib" onchange="applyFilters()" class="w-full bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl px-2.5 py-2 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-500">
             <option value="ALL">Bütün Sahibləri</option>
             <option value="Elşən">Elşən</option>
             <option value="Gülnarə">Gülnarə</option>
           </select>
         </div>
         <div>
-          <label class="block text-[11px] font-medium text-slate-500 mb-1">Əməliyyat Tipi</label>
-          <select id="filterType" onchange="applyFilters()" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-2 text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-500">
+          <label class="block text-[11px] font-semibold text-slate-400 mb-1">Əməliyyat</label>
+          <select id="filterType" onchange="applyFilters()" class="w-full bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl px-2.5 py-2 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-500">
             <option value="ALL">Bütün Əməliyyatlar</option>
             <option value="Nağd">Yalnız Nağd</option>
             <option value="Nisyə">Yalnız Nisyə</option>
@@ -224,52 +389,115 @@
         </div>
       </div>
 
-      <!-- Anlıq Axtarış -->
+      <!-- Axtarış Inputu -->
       <div class="relative">
         <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
-        <input type="text" id="filterSearch" oninput="applyFilters()" placeholder="Məhsul adı, müştəri və ya qəbz no ilə axtar..." class="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-3 py-2.5 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500">
+        <input type="text" id="filterSearch" oninput="applyFilters()" placeholder="Məhsul, müştəri və ya qəbz nömrəsi ilə anlıq axtarış..." class="w-full bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-2xl pl-9 pr-4 py-2.5 text-xs text-slate-800 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500 transition">
       </div>
     </div>
 
-    <!-- ƏMƏLİYYATLAR SİYAHISI BAŞLIĞI VƏ EXCEL DÜYMƏSİ -->
-    <div class="flex items-center justify-between gap-3">
+    <!-- 6. ƏMƏLİYYATLAR SİYAHISI BAŞLIĞI VƏ EXCEL DÜYMƏSİ -->
+    <div class="flex items-center justify-between gap-3 pt-2">
       <div>
-        <h3 class="text-sm font-bold text-slate-900">Əməliyyatlar Siyahısı</h3>
-        <p id="recordCountText" class="text-xs text-slate-400">Yüklənir...</p>
+        <h3 class="text-sm font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
+          <span>Satışlar və Qaytarmalar</span>
+          <span id="recordCountBadge" class="px-2 py-0.5 rounded-full text-[11px] font-bold bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300">0</span>
+        </h3>
+        <p class="text-[11px] text-slate-400">Detallı baxmaq üçün qəbzin üzərinə toxunun</p>
       </div>
 
-      <!-- Excel Çıxarış Düyməsi -->
-      <button onclick="exportToExcel()" class="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-2 rounded-xl text-xs font-bold shadow-sm transition active:scale-95">
+      <!-- Excel Export Button -->
+      <button onclick="exportToExcel()" class="inline-flex items-center gap-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white px-4 py-2 rounded-2xl text-xs font-bold shadow-md shadow-emerald-600/20 transition active:scale-95">
         <i class="fa-solid fa-file-excel text-sm"></i>
-        <span>Excel Yüklə</span>
+        <span>Excel (.xlsx)</span>
       </button>
     </div>
 
-    <!-- ƏMƏLİYYATLAR SİYAHISI (TRANSACTION CARDS) -->
+    <!-- 7. ƏMƏLİYYAT KARTLARI FEED-İ -->
     <div id="transactionsList" class="space-y-2.5">
-      <!-- JavaScript ilə doldurulacaq -->
+      <!-- JavaScript ilə render olunacaq -->
     </div>
 
-    <!-- BOŞ VƏZİYYƏT (EMPTY STATE) -->
-    <div id="emptyState" class="hidden bg-white rounded-2xl border border-slate-200 p-8 text-center">
-      <div class="w-12 h-12 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center mx-auto mb-3 text-xl">
+    <!-- Boş vəziyyət -->
+    <div id="emptyState" class="hidden bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 p-10 text-center">
+      <div class="w-14 h-14 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-400 flex items-center justify-center mx-auto mb-3 text-2xl">
         <i class="fa-regular fa-folder-open"></i>
       </div>
-      <div class="text-sm font-bold text-slate-700">Heç bir qeyd tapılmadı</div>
-      <div class="text-xs text-slate-400 mt-1">Seçilmiş filtrlərə uyğun heç bir satış və ya əməliyyat mövcud deyil.</div>
+      <div class="text-sm font-bold text-slate-700 dark:text-slate-300">Heç bir əməliyyat tapılmadı</div>
+      <div class="text-xs text-slate-400 mt-1">Seçilmiş kriteriyalara uyğun məlumat yoxdur.</div>
     </div>
 
   </main>
 
-  <!-- ================= TƏNZİMLƏMƏLƏR MODALI ================= -->
-  <div id="settingsModal" class="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm hidden items-center justify-center p-4">
-    <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4">
-      <div class="flex items-center justify-between border-b border-slate-100 pb-3">
-        <div class="flex items-center gap-2.5">
-          <div class="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-sm">
-            <i class="fa-solid fa-cloud"></i>
+  <!-- ================= QƏBZ DETALI MODALI (RECEIPT MODAL) ================= -->
+  <div id="receiptModal" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm hidden items-center justify-center p-4">
+    <div class="bg-white dark:bg-slate-900 rounded-3xl max-w-sm w-full p-6 shadow-2xl space-y-4 border border-slate-200 dark:border-slate-800 relative">
+      <button onclick="closeReceiptModal()" class="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-slate-800 flex items-center justify-center text-sm">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+
+      <div class="text-center border-b border-dashed border-slate-200 dark:border-slate-700 pb-4">
+        <div class="w-12 h-12 rounded-2xl bg-brand-50 dark:bg-brand-950 text-brand-600 dark:text-brand-400 flex items-center justify-center mx-auto mb-2 text-xl">
+          <i class="fa-solid fa-receipt"></i>
+        </div>
+        <h4 class="text-base font-extrabold text-slate-900 dark:text-white">Papatya Mağazası</h4>
+        <div id="rcpTarix" class="text-xs text-slate-400 mt-0.5">18.09.2026 14:20</div>
+        <div id="rcpId" class="text-[11px] mono text-slate-400">Qəbz ID: #...</div>
+      </div>
+
+      <div class="space-y-2.5 text-xs">
+        <div class="flex justify-between items-center py-1">
+          <span class="text-slate-500 dark:text-slate-400">Məhsul</span>
+          <span id="rcpMehsul" class="font-bold text-slate-800 dark:text-slate-200 text-right">...</span>
+        </div>
+        <div class="flex justify-between items-center py-1">
+          <span class="text-slate-500 dark:text-slate-400">Miqdar / Say</span>
+          <span id="rcpSay" class="font-bold mono text-slate-800 dark:text-slate-200">1</span>
+        </div>
+        <div class="flex justify-between items-center py-1">
+          <span class="text-slate-500 dark:text-slate-400">Ödəniş Növü</span>
+          <span id="rcpOdenis" class="font-bold">Nağd</span>
+        </div>
+        <div id="rcpMusteriRow" class="flex justify-between items-center py-1 hidden">
+          <span class="text-slate-500 dark:text-slate-400">Müştəri</span>
+          <span id="rcpMusteri" class="font-bold text-amber-600">...</span>
+        </div>
+        <div class="flex justify-between items-center py-1">
+          <span class="text-slate-500 dark:text-slate-400">Sahib</span>
+          <span id="rcpSahib" class="font-bold">...</span>
+        </div>
+
+        <div class="border-t border-dashed border-slate-200 dark:border-slate-700 pt-3 space-y-1.5">
+          <div class="flex justify-between items-center">
+            <span class="text-slate-500 dark:text-slate-400">Maya Dəyəri:</span>
+            <span id="rcpMaya" class="font-bold mono text-slate-600 dark:text-slate-400">0.00 ₼</span>
           </div>
-          <h3 class="text-base font-bold text-slate-900">Supabase Bağlantı Ayarları</h3>
+          <div class="flex justify-between items-center">
+            <span class="text-slate-500 dark:text-slate-400">Xalis Qazanc:</span>
+            <span id="rcpQazanc" class="font-bold mono text-emerald-600 dark:text-emerald-400">+0.00 ₼</span>
+          </div>
+          <div class="flex justify-between items-center text-sm pt-2 border-t border-slate-100 dark:border-slate-800">
+            <span class="font-bold text-slate-900 dark:text-white">Toplam Satış:</span>
+            <span id="rcpMebleg" class="font-black mono text-base text-slate-900 dark:text-white">0.00 ₼</span>
+          </div>
+        </div>
+      </div>
+
+      <button onclick="closeReceiptModal()" class="w-full py-2.5 rounded-2xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-xs font-bold text-slate-700 dark:text-slate-300 transition">
+        Bağla
+      </button>
+    </div>
+  </div>
+
+  <!-- ================= TƏNZİMLƏMƏLƏR MODALI ================= -->
+  <div id="settingsModal" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm hidden items-center justify-center p-4">
+    <div class="bg-white dark:bg-slate-900 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4 border border-slate-200 dark:border-slate-800">
+      <div class="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+        <div class="flex items-center gap-2.5">
+          <div class="w-8 h-8 rounded-xl bg-indigo-50 dark:bg-indigo-950/70 text-indigo-600 flex items-center justify-center text-sm">
+            <i class="fa-solid fa-sliders"></i>
+          </div>
+          <h3 class="text-base font-bold text-slate-900 dark:text-white">Sistem Ayarları</h3>
         </div>
         <button onclick="closeSettingsModal()" class="text-slate-400 hover:text-slate-600 text-lg">
           <i class="fa-solid fa-xmark"></i>
@@ -278,46 +506,161 @@
 
       <div class="space-y-3 text-xs">
         <div>
-          <label class="block font-semibold text-slate-700 mb-1">Supabase Project URL</label>
-          <input type="text" id="cfgSupabaseUrl" placeholder="https://xxxxxxxxxxxx.supabase.co" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-500 font-mono text-[11px]">
+          <label class="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Supabase Project URL</label>
+          <input type="text" id="cfgSupabaseUrl" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-slate-800 dark:text-slate-100 font-mono text-[11px] focus:outline-none focus:ring-2 focus:ring-brand-500">
         </div>
 
         <div>
-          <label class="block font-semibold text-slate-700 mb-1">Supabase Anon Key (public)</label>
-          <textarea id="cfgSupabaseKey" rows="3" placeholder="eyJhbGciOiJIUzI1NiIsIn..." class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-500 font-mono text-[10px]"></textarea>
+          <label class="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Supabase Anon Key</label>
+          <textarea id="cfgSupabaseKey" rows="3" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-slate-800 dark:text-slate-100 font-mono text-[10px] focus:outline-none focus:ring-2 focus:ring-brand-500"></textarea>
         </div>
-
-        <p class="text-[11px] text-slate-500 leading-relaxed">
-          Bu açarlar yalnız telefonunuzun brauzer yaddaşında (LocalStorage) saxlanılır. Dəyişdirdikdən sonra <b>Yadda Saxla</b> düyməsini vurun.
-        </p>
       </div>
 
-      <div class="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
-        <button onclick="closeSettingsModal()" class="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 transition">İmtina</button>
-        <button onclick="saveSupabaseSettings()" class="px-5 py-2 rounded-xl text-xs font-bold bg-brand-600 hover:bg-brand-700 text-white shadow-sm transition">Yadda Saxla</button>
+      <div class="flex items-center justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+        <button onclick="closeSettingsModal()" class="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition">İmtina</button>
+        <button onclick="saveSupabaseSettings()" class="px-5 py-2 rounded-xl text-xs font-bold bg-brand-600 hover:bg-brand-700 text-white shadow-xs transition">Yadda Saxla</button>
       </div>
     </div>
   </div>
 
   <!-- ================= JAVASCRIPT ================= -->
   <script>
-    // Standart / Default açarlar
+    // Giriş Şifrəsi
+    const APP_PASSWORD = "Gubus0123456789-";
+
+    // Standart Supabase açarlarınız
     const DEFAULT_SUPABASE_URL = "https://rwsdahmgallpyzonucpb.supabase.co";
     const DEFAULT_SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ3c2RhaG1nYWxscHl6b251Y3BiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk3MDQzMzYsImV4cCI6MjEwNTI4MDMzNn0.jczh4ZJr0-JeBijwmXXXydqycj6YXDARCuxkiyAWKDM";
 
     let supabaseClient = null;
     let allRecords = [];
     let filteredRecords = [];
-    let topChart = null;
+    let mainChart = null;
+    let activeChartTab = 'products'; // 'products' və ya 'hourly'
+    let audioEnabled = true;
 
-    // Səhifə açıldıqda
+    // Səhifə yüklənəndə
     document.addEventListener('DOMContentLoaded', () => {
+      checkAuthOnLoad();
+      initTheme();
       initDatePresetToday();
       initSupabase();
       initChart();
     });
 
-    // Supabase Client-in başladılması
+    // 0. Giriş Parolu Təhlükəsizliyi
+    function checkAuthOnLoad() {
+      const savedPass = localStorage.getItem('papatya_pos_auth');
+      if (savedPass === APP_PASSWORD) {
+        document.getElementById('lockScreen').classList.add('hidden');
+      } else {
+        document.getElementById('lockScreen').classList.remove('hidden');
+        setTimeout(() => {
+          document.getElementById('passInput')?.focus();
+        }, 150);
+      }
+    }
+
+    function checkPassword(e) {
+      e.preventDefault();
+      const val = document.getElementById('passInput').value;
+      if (val === APP_PASSWORD) {
+        localStorage.setItem('papatya_pos_auth', val);
+        document.getElementById('lockScreen').classList.add('hidden');
+        playCashSound();
+        showToast("Xoş Gəldiniz!", "Giriş uğurla təsdiqləndi.", "emerald");
+      } else {
+        const err = document.getElementById('passError');
+        err.classList.remove('hidden');
+        document.getElementById('passInput').value = '';
+        document.getElementById('passInput').focus();
+      }
+    }
+
+    function logout() {
+      if (confirm("Sistemdən çıxış edib səhifəni kilidləmək istəyirsiniz?")) {
+        localStorage.removeItem('papatya_pos_auth');
+        document.getElementById('lockScreen').classList.remove('hidden');
+        document.getElementById('passInput').value = '';
+        document.getElementById('passError').classList.add('hidden');
+        document.getElementById('passInput').focus();
+        showToast("Kilidləndi", "Sistemdən çıxış edildi.", "amber");
+      }
+    }
+
+    // 1. Mövzu (Dark / Light Mode)
+    function initTheme() {
+      const isDark = localStorage.getItem('pos_dark_mode') === 'true' || 
+        (!('pos_dark_mode' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches);
+      setDarkMode(isDark);
+    }
+
+    function toggleDarkMode() {
+      const isDark = !document.documentElement.classList.contains('dark');
+      setDarkMode(isDark);
+    }
+
+    function setDarkMode(isDark) {
+      if (isDark) {
+        document.documentElement.classList.add('dark');
+        document.getElementById('themeIcon').className = "fa-solid fa-sun text-amber-400 text-sm";
+        localStorage.setItem('pos_dark_mode', 'true');
+      } else {
+        document.documentElement.classList.remove('dark');
+        document.getElementById('themeIcon').className = "fa-solid fa-moon text-slate-600 text-sm";
+        localStorage.setItem('pos_dark_mode', 'false');
+      }
+      if (mainChart) updateChart();
+    }
+
+    // 2. Kassa Zəngi Səsi (Web Audio API ilə təbii kassa səsi)
+    function toggleAudio() {
+      audioEnabled = !audioEnabled;
+      const btn = document.getElementById('audioBtn');
+      if (audioEnabled) {
+        btn.innerHTML = '<i class="fa-solid fa-volume-high text-sm text-indigo-600 dark:text-indigo-400"></i>';
+        showToast("Səs Aktiv", "Yeni satışlarda kassa zəngi çalacaq.");
+        playCashSound();
+      } else {
+        btn.innerHTML = '<i class="fa-solid fa-volume-xmark text-sm text-slate-400"></i>';
+        showToast("Səs Bağlandı", "Bildiriş səsi söndürüldü.");
+      }
+    }
+
+    function playCashSound() {
+      if (!audioEnabled) return;
+      try {
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const now = audioCtx.currentTime;
+
+        // İki tonlu zərif kassa ding səsi (E6 və B6 notaları)
+        const osc1 = audioCtx.createOscillator();
+        const gain1 = audioCtx.createGain();
+        osc1.type = 'sine';
+        osc1.frequency.setValueAtTime(1318.51, now); // E6
+        gain1.gain.setValueAtTime(0.3, now);
+        gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
+        osc1.connect(gain1);
+        gain1.connect(audioCtx.destination);
+        osc1.start(now);
+        osc1.stop(now + 0.5);
+
+        const osc2 = audioCtx.createOscillator();
+        const gain2 = audioCtx.createGain();
+        osc2.type = 'triangle';
+        osc2.frequency.setValueAtTime(1975.53, now + 0.08); // B6
+        gain2.gain.setValueAtTime(0.35, now + 0.08);
+        gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.7);
+        osc2.connect(gain2);
+        gain2.connect(audioCtx.destination);
+        osc2.start(now + 0.08);
+        osc2.stop(now + 0.7);
+      } catch (e) {
+        // audio context blocker bypass
+      }
+    }
+
+    // 3. Supabase Bağlantısı
     function initSupabase() {
       const savedUrl = localStorage.getItem('supabase_url') || DEFAULT_SUPABASE_URL;
       const savedKey = localStorage.getItem('supabase_key') || DEFAULT_SUPABASE_KEY;
@@ -326,91 +669,78 @@
       document.getElementById('cfgSupabaseKey').value = savedKey;
 
       if (!savedUrl || !savedKey) {
-        document.getElementById('liveStatusText').innerText = "Açar daxil edilməyib";
-        document.getElementById('liveStatusText').className = "font-medium text-amber-600";
-        document.getElementById('liveBadgeDot').className = "w-2 h-2 rounded-full bg-amber-500";
+        document.getElementById('liveStatus').innerText = "Açar yoxdur";
+        document.getElementById('liveStatus').className = "font-semibold text-amber-600 text-[11px]";
+        document.getElementById('liveDot').className = "w-2 h-2 rounded-full bg-amber-500";
         openSettingsModal();
         return;
       }
 
       try {
         supabaseClient = window.supabase.createClient(savedUrl.trim(), savedKey.trim());
-        
-        document.getElementById('liveStatusText').innerText = "Canlı Bağlantı";
-        document.getElementById('liveStatusText').className = "font-medium text-emerald-600";
-        document.getElementById('liveBadgeDot').className = "w-2 h-2 rounded-full bg-emerald-500 live-dot";
+        document.getElementById('liveStatus').innerText = "Realtime Aktiv";
+        document.getElementById('liveStatus').className = "font-semibold text-emerald-600 dark:text-emerald-400 text-[11px]";
+        document.getElementById('liveDot').className = "w-2 h-2 rounded-full bg-emerald-500 pulse-dot";
 
-        // Məlumatları yüklə
         loadData();
-
-        // Realtime dinləyici aktivləşdir
         subscribeRealtime();
       } catch (err) {
-        console.error("Supabase init error:", err);
-        showToast("Bağlantı Xətası", err.message, "rose");
+        console.error("Supabase xətası:", err);
+        showToast("Xəta", err.message, "rose");
       }
     }
 
-    // Realtime Dinləmə (Canlı Yenilənmə)
+    // 4. Canlı Realtime Dinləmə
     function subscribeRealtime() {
       if (!supabaseClient) return;
 
       supabaseClient
-        .channel('public:satislar')
+        .channel('public:satislar_v2')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'satislar' }, (payload) => {
-          console.log("Realtime event received:", payload);
-          
           if (payload.eventType === 'INSERT') {
             const newItem = payload.new;
             allRecords.unshift(newItem);
-            showToast("Yeni Əməliyyat!", `${newItem.mehsul_adi} - ${newItem.mebleg} ₼ (${newItem.odenis_novu})`, "emerald");
+            playCashSound();
+            showToast("Yeni Satış!", `${newItem.mehsul_adi} • +${parseFloat(newItem.mebleg).toFixed(2)} ₼`, "emerald");
           } else if (payload.eventType === 'DELETE') {
             const oldId = payload.old.id;
             allRecords = allRecords.filter(r => r.id !== oldId);
-            showToast("Silinmə", `Əməliyyat silindi.`, "amber");
+            showToast("Silindi", "Satış qeydi silindi.", "amber");
           } else if (payload.eventType === 'UPDATE') {
             const updated = payload.new;
-            const index = allRecords.findIndex(r => r.id === updated.id);
-            if (index !== -1) allRecords[index] = updated;
+            const idx = allRecords.findIndex(r => r.id === updated.id);
+            if (idx !== -1) allRecords[idx] = updated;
           }
-
           applyFilters();
         })
-        .subscribe((status) => {
-          console.log("Realtime subscription status:", status);
-        });
+        .subscribe();
     }
 
-    // Supabase-dən məlumatları yükləmə
+    // 5. Məlumatları Yükləmə
     async function loadData(manual = false) {
       if (!supabaseClient) return;
-
-      if (manual) {
-        document.getElementById('recordCountText').innerText = "Yenilənir...";
-      }
 
       try {
         const { data, error } = await supabaseClient
           .from('satislar')
           .select('*')
           .order('tarix', { ascending: false })
-          .limit(1000);
+          .limit(2000);
 
         if (error) throw error;
-
         allRecords = data || [];
         applyFilters();
 
         if (manual) {
-          showToast("Yeniləndi", "Məlumatlar uğurla yeniləndi.", "emerald");
+          showToast("Yeniləndi", "Məlumatlar bazadan yeniləndi.", "emerald");
         }
       } catch (err) {
-        console.error("Məlumat yüklənmə xətası:", err);
-        showToast("Xəta", "Məlumatları oxumaq mümkün olmadı: " + err.message, "rose");
+        console.error("Yükləmə xətası:", err);
+        showToast("Xəta", err.message, "rose");
       }
     }
 
-    // Süzgəcləri tətbiq etmə
+    // 6. Filtrlər
     function applyFilters() {
       const search = document.getElementById('filterSearch').value.toLowerCase().trim();
       const sahib = document.getElementById('filterSahib').value;
@@ -424,18 +754,15 @@
       filteredRecords = allRecords.filter(item => {
         const itemDate = new Date(item.tarix);
 
-        // Tarix filtri
         if (start && itemDate < start) return false;
         if (end && itemDate > end) return false;
 
-        // Sahib filtri
         if (sahib !== 'ALL') {
           if ((item.sahib_adi || '').toLowerCase() !== sahib.toLowerCase()) {
             return false;
           }
         }
 
-        // Əməliyyat tipi / Ödəniş növü filtri
         if (type !== 'ALL') {
           if (type === 'QAYTARILMA') {
             if (item.emeliyyat_tipi !== 'QAYTARILMA') return false;
@@ -445,7 +772,6 @@
           }
         }
 
-        // Axtarış filtri
         if (search) {
           const mAd = (item.mehsul_adi || '').toLowerCase();
           const musteri = (item.musteri_adi || '').toLowerCase();
@@ -463,33 +789,86 @@
       updateChart();
     }
 
-    // Kart statistikalarını hesablama
+    // 7. Statistika və Qazanc Hesablamaları
     function updateStats() {
+      let totalDovriyye = 0;
+      let totalMaya = 0;
+      let totalQazanc = 0;
       let totalNeqd = 0;
       let totalNisye = 0;
       let totalQaytarma = 0;
+      let satisCount = 0;
+
+      // Sahib statistikası
+      let elsenSatish = 0, elsenQazanc = 0;
+      let gulnareSatish = 0, gulnareQazanc = 0;
 
       filteredRecords.forEach(item => {
-        const val = parseFloat(item.mebleg) || 0;
-        if (item.emeliyyat_tipi === 'QAYTARILMA') {
-          totalQaytarma += Math.abs(val);
-        } else if (item.odenis_novu === 'Nisyə') {
-          totalNisye += val;
+        const mebleg = parseFloat(item.mebleg) || 0;
+        const maya = parseFloat(item.alis_qiymeti) || 0;
+        
+        // Əgər bazada qazanc sütunu varsa onu götür, yoxdursa hesabla
+        let qazanc = 0;
+        if (item.qazanc !== undefined && item.qazanc !== null) {
+          qazanc = parseFloat(item.qazanc);
         } else {
-          totalNeqd += val;
+          qazanc = mebleg - maya;
+        }
+
+        const isReturn = item.emeliyyat_tipi === 'QAYTARILMA';
+
+        if (isReturn) {
+          totalQaytarma += Math.abs(mebleg);
+          totalQazanc += qazanc; // Qaytarılanda qazanc mənfidir
+        } else {
+          satisCount++;
+          totalDovriyye += mebleg;
+          totalMaya += maya;
+          totalQazanc += qazanc;
+
+          if (item.odenis_novu === 'Nisyə') {
+            totalNisye += mebleg;
+          } else {
+            totalNeqd += mebleg;
+          }
+
+          // Sahib bölgüsü
+          if (item.sahib_adi === 'Elşən') {
+            elsenSatish += mebleg;
+            elsenQazanc += qazanc;
+          } else if (item.sahib_adi === 'Gülnarə') {
+            gulnareSatish += mebleg;
+            gulnareQazanc += qazanc;
+          }
         }
       });
 
       const netKassa = totalNeqd - totalQaytarma;
+      const marjaFaizi = totalDovriyye > 0 ? ((totalQazanc / totalDovriyye) * 100) : 0;
+      const ortaQebz = satisCount > 0 ? (totalDovriyye / satisCount) : 0;
+
+      // DOM Yeniləmələri
+      document.getElementById('statQazanc').innerText = totalQazanc.toFixed(2) + ' ₼';
+      document.getElementById('statMarja').innerText = marjaFaizi.toFixed(1) + '% Marja';
+      document.getElementById('statDovriyye').innerText = totalDovriyye.toFixed(2) + ' ₼';
+      document.getElementById('statSatisSayı').innerText = satisCount;
+      document.getElementById('statMaya').innerText = totalMaya.toFixed(2) + ' ₼';
+      document.getElementById('statNetKassa').innerText = netKassa.toFixed(2) + ' ₼';
 
       document.getElementById('statNeqd').innerText = totalNeqd.toFixed(2) + ' ₼';
       document.getElementById('statNisye').innerText = totalNisye.toFixed(2) + ' ₼';
       document.getElementById('statQaytarma').innerText = totalQaytarma.toFixed(2) + ' ₼';
-      document.getElementById('statNetKassa').innerText = netKassa.toFixed(2) + ' ₼';
-      document.getElementById('recordCountText').innerText = `${filteredRecords.length} əməliyyat tapıldı`;
+      document.getElementById('statOrtaQebz').innerText = ortaQebz.toFixed(2) + ' ₼';
+
+      document.getElementById('statElsenSatish').innerText = elsenSatish.toFixed(2) + ' ₼';
+      document.getElementById('statElsenQazanc').innerText = 'Qazanc: ' + elsenQazanc.toFixed(2) + ' ₼';
+      document.getElementById('statGulnareSatish').innerText = gulnareSatish.toFixed(2) + ' ₼';
+      document.getElementById('statGulnareQazanc').innerText = 'Qazanc: ' + gulnareQazanc.toFixed(2) + ' ₼';
+
+      document.getElementById('recordCountBadge').innerText = filteredRecords.length;
     }
 
-    // Əməliyyatlar siyahısının ekrana çıxarılması
+    // 8. Əməliyyat Siyahısı (Kartlar)
     function renderTransactions() {
       const container = document.getElementById('transactionsList');
       const emptyState = document.getElementById('emptyState');
@@ -502,64 +881,81 @@
 
       emptyState.classList.add('hidden');
 
-      const html = filteredRecords.map(item => {
+      const html = filteredRecords.map((item, index) => {
         const isReturn = item.emeliyyat_tipi === 'QAYTARILMA';
         const isCredit = item.odenis_novu === 'Nisyə' && !isReturn;
-        const val = parseFloat(item.mebleg) || 0;
+        const mebleg = parseFloat(item.mebleg) || 0;
+        const maya = parseFloat(item.alis_qiymeti) || 0;
+        const qazanc = (item.qazanc !== undefined && item.qazanc !== null) ? parseFloat(item.qazanc) : (mebleg - maya);
         const qty = parseFloat(item.say) || 1;
 
-        // Tarix formatı
         const dateObj = new Date(item.tarix);
         const timeStr = dateObj.toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' });
-        const dateStr = dateObj.toLocaleDateString('az-AZ', { day: '2-digit', month: '2-digit', year: 'numeric' });
+        const dateStr = dateObj.toLocaleDateString('az-AZ', { day: '2-digit', month: '2-digit' });
 
-        // Badge-lər
+        // Badge
         let typeBadge = '';
         if (isReturn) {
-          typeBadge = `<span class="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold bg-rose-50 text-rose-600 border border-rose-200">Qaytarılma</span>`;
+          typeBadge = `<span class="px-2 py-0.5 rounded-lg text-[10px] font-extrabold bg-rose-50 text-rose-600 dark:bg-rose-950/60 dark:text-rose-400 border border-rose-200 dark:border-rose-800">Qaytarılma</span>`;
         } else if (isCredit) {
-          typeBadge = `<span class="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">Nisyə</span>`;
+          typeBadge = `<span class="px-2 py-0.5 rounded-lg text-[10px] font-extrabold bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200 dark:border-amber-800">Nisyə</span>`;
         } else {
-          typeBadge = `<span class="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">Nağd</span>`;
+          typeBadge = `<span class="px-2 py-0.5 rounded-lg text-[10px] font-extrabold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">Nağd</span>`;
         }
 
         // Sahib Badge
         let sahibBadge = '';
         if (item.sahib_adi === 'Elşən') {
-          sahibBadge = `<span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-indigo-50 text-indigo-700">Elşən</span>`;
+          sahibBadge = `<span class="px-2 py-0.5 rounded-lg text-[10px] font-bold bg-indigo-50 text-indigo-700 dark:bg-indigo-950/70 dark:text-indigo-300">Elşən</span>`;
         } else if (item.sahib_adi === 'Gülnarə') {
-          sahibBadge = `<span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-pink-50 text-pink-700">Gülnarə</span>`;
+          sahibBadge = `<span class="px-2 py-0.5 rounded-lg text-[10px] font-bold bg-pink-50 text-pink-700 dark:bg-pink-950/70 dark:text-pink-300">Gülnarə</span>`;
         }
 
-        // Məbləğ rəngi
-        const amountClass = isReturn ? 'text-rose-600' : 'text-slate-900';
-        const sign = isReturn ? '-' : '+';
+        // Qazanc rəngi
+        const qazancClass = qazanc >= 0 ? 'text-emerald-600 dark:text-emerald-400 font-bold' : 'text-rose-600 dark:text-rose-400 font-bold';
+        const qazancSign = qazanc >= 0 ? '+' : '';
 
         return `
-          <div class="bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-sm flex items-center justify-between gap-3 hover:border-slate-300 transition">
-            <div class="space-y-1 flex-1 min-w-0">
-              <div class="flex items-center gap-1.5 flex-wrap">
-                <span class="font-bold text-xs sm:text-sm text-slate-800 truncate">${escapeHtml(item.mehsul_adi)}</span>
-                ${typeBadge}
-                ${sahibBadge}
-              </div>
-              <div class="flex items-center gap-2 text-[11px] text-slate-400">
-                <span><i class="fa-regular fa-clock text-[10px] mr-0.5"></i> ${timeStr} • ${dateStr}</span>
-                <span>•</span>
-                <span class="font-medium text-slate-600">${qty} ədəd</span>
-              </div>
-              ${item.musteri_adi ? `
-                <div class="text-[11px] text-amber-800 font-semibold flex items-center gap-1 mt-0.5">
-                  <i class="fa-solid fa-user text-[10px]"></i> Müştəri: ${escapeHtml(item.musteri_adi)}
+          <div onclick="openReceiptModal(${index})" class="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs hover:border-indigo-400 dark:hover:border-indigo-600 transition active:scale-[0.99] cursor-pointer">
+            <div class="flex items-start justify-between gap-3">
+              <div class="space-y-1.5 flex-1 min-w-0">
+                <div class="flex items-center gap-1.5 flex-wrap">
+                  <span class="font-extrabold text-sm text-slate-900 dark:text-white truncate">${escapeHtml(item.mehsul_adi)}</span>
+                  ${typeBadge}
+                  ${sahibBadge}
                 </div>
-              ` : ''}
-            </div>
 
-            <div class="text-right flex-shrink-0">
-              <div class="text-sm sm:text-base font-black mono ${amountClass}">
-                ${sign}${Math.abs(val).toFixed(2)} ₼
+                <div class="flex items-center gap-2 text-xs text-slate-400 flex-wrap">
+                  <span><i class="fa-regular fa-clock mr-1 text-[10px]"></i>${timeStr} • ${dateStr}</span>
+                  <span>•</span>
+                  <span class="font-semibold text-slate-700 dark:text-slate-300">${qty} ədəd</span>
+                </div>
+
+                <!-- Maya və Qazanc Sətri -->
+                <div class="flex items-center gap-3 text-[11px] pt-1">
+                  <div class="text-slate-500 dark:text-slate-400">
+                    Maya: <span class="mono font-semibold text-slate-700 dark:text-slate-300">${maya.toFixed(2)} ₼</span>
+                  </div>
+                  <div class="${qazancClass} flex items-center gap-1">
+                    <span>Qazanc:</span>
+                    <span class="mono">${qazancSign}${qazanc.toFixed(2)} ₼</span>
+                  </div>
+                </div>
+
+                ${item.musteri_adi ? `
+                  <div class="text-xs text-amber-700 dark:text-amber-400 font-bold flex items-center gap-1.5 pt-0.5">
+                    <i class="fa-solid fa-user text-[10px]"></i> Müştəri: ${escapeHtml(item.musteri_adi)}
+                  </div>
+                ` : ''}
               </div>
-              <div class="text-[10px] text-slate-400">Qəbz: #${escapeHtml((item.yerli_satis_id || '').substring(0, 8))}</div>
+
+              <!-- Məbləğ -->
+              <div class="text-right flex-shrink-0">
+                <div class="text-base sm:text-lg font-black mono ${isReturn ? 'text-rose-600' : 'text-slate-900 dark:text-white'}">
+                  ${isReturn ? '-' : '+'}${Math.abs(mebleg).toFixed(2)} ₼
+                </div>
+                <div class="text-[10px] text-slate-400 mono">#${escapeHtml((item.yerli_satis_id || '').substring(0, 8))}</div>
+              </div>
             </div>
           </div>
         `;
@@ -568,21 +964,52 @@
       container.innerHTML = html;
     }
 
-    // Chart.js Qrafikinin qurulması və yenilənməsi
+    // 9. Qəbz Detalı Modalı
+    function openReceiptModal(index) {
+      const item = filteredRecords[index];
+      if (!item) return;
+
+      const dateObj = new Date(item.tarix);
+      const isReturn = item.emeliyyat_tipi === 'QAYTARILMA';
+      const mebleg = parseFloat(item.mebleg) || 0;
+      const maya = parseFloat(item.alis_qiymeti) || 0;
+      const qazanc = (item.qazanc !== undefined && item.qazanc !== null) ? parseFloat(item.qazanc) : (mebleg - maya);
+
+      document.getElementById('rcpTarix').innerText = dateObj.toLocaleDateString('az-AZ') + ' ' + dateObj.toLocaleTimeString('az-AZ');
+      document.getElementById('rcpId').innerText = 'Qəbz ID: #' + (item.yerli_satis_id || 'Yoxdur');
+      document.getElementById('rcpMehsul').innerText = item.mehsul_adi;
+      document.getElementById('rcpSay').innerText = item.say + ' ədəd';
+      document.getElementById('rcpOdenis').innerText = isReturn ? 'Qaytarılma' : item.odenis_novu;
+      document.getElementById('rcpSahib').innerText = item.sahib_adi || 'Bilinmir';
+      document.getElementById('rcpMaya').innerText = maya.toFixed(2) + ' ₼';
+      document.getElementById('rcpQazanc').innerText = (qazanc >= 0 ? '+' : '') + qazanc.toFixed(2) + ' ₼';
+      document.getElementById('rcpMebleg').innerText = (isReturn ? '-' : '') + Math.abs(mebleg).toFixed(2) + ' ₼';
+
+      const musteriRow = document.getElementById('rcpMusteriRow');
+      if (item.musteri_adi) {
+        document.getElementById('rcpMusteri').innerText = item.musteri_adi;
+        musteriRow.classList.remove('hidden');
+      } else {
+        musteriRow.classList.add('hidden');
+      }
+
+      const modal = document.getElementById('receiptModal');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+
+    function closeReceiptModal() {
+      const modal = document.getElementById('receiptModal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    }
+
+    // 10. Qrafiklər (Chart.js)
     function initChart() {
-      const ctx = document.getElementById('topProductsChart').getContext('2d');
-      topChart = new Chart(ctx, {
+      const ctx = document.getElementById('mainChart').getContext('2d');
+      mainChart = new Chart(ctx, {
         type: 'bar',
-        data: {
-          labels: [],
-          datasets: [{
-            label: 'Satış Sayı',
-            data: [],
-            backgroundColor: 'rgba(99, 102, 241, 0.85)',
-            borderRadius: 8,
-            borderSkipped: false
-          }]
-        },
+        data: { labels: [], datasets: [] },
         options: {
           responsive: true,
           maintainAspectRatio: false,
@@ -590,97 +1017,184 @@
             legend: { display: false },
             tooltip: {
               callbacks: {
-                label: (context) => ` Satış: ${context.parsed.y} ədəd`
+                label: (context) => ` ${context.parsed.y} ədəd`
               }
             }
           },
           scales: {
             x: {
               grid: { display: false },
-              ticks: { font: { size: 10, family: 'Outfit' }, maxRotation: 25 }
+              ticks: { 
+                font: { size: 10, family: 'Outfit' },
+                color: () => document.documentElement.classList.contains('dark') ? '#94a3b8' : '#64748b'
+              }
             },
             y: {
               beginAtZero: true,
-              grid: { color: 'rgba(226, 232, 240, 0.6)' },
-              ticks: { font: { size: 10, family: 'Outfit' }, stepSize: 1 }
+              grid: { 
+                color: () => document.documentElement.classList.contains('dark') ? 'rgba(51, 65, 85, 0.4)' : 'rgba(226, 232, 240, 0.7)' 
+              },
+              ticks: { 
+                font: { size: 10, family: 'Outfit' },
+                color: () => document.documentElement.classList.contains('dark') ? '#94a3b8' : '#64748b',
+                stepSize: 1 
+              }
             }
           }
         }
       });
     }
 
-    function updateChart() {
-      if (!topChart) return;
+    function switchChartTab(tab) {
+      activeChartTab = tab;
+      const btnProd = document.getElementById('chartTabProducts');
+      const btnHour = document.getElementById('chartTabHourly');
 
-      const productCounts = {};
-      filteredRecords.forEach(item => {
-        if (item.emeliyyat_tipi === 'QAYTARILMA') return;
-        const name = item.mehsul_adi || 'Naməlum';
-        const count = parseFloat(item.say) || 1;
-        productCounts[name] = (productCounts[name] || 0) + count;
-      });
-
-      // Ən çox satılan top 6 məhsul
-      const sorted = Object.entries(productCounts)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 6);
-
-      topChart.data.labels = sorted.map(i => i[0].length > 15 ? i[0].substring(0, 15) + '...' : i[0]);
-      topChart.data.datasets[0].data = sorted.map(i => i[1]);
-      topChart.update();
+      if (tab === 'products') {
+        btnProd.className = "px-3 py-1.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/70 text-indigo-700 dark:text-indigo-300 font-bold text-xs transition";
+        btnHour.className = "px-3 py-1.5 rounded-xl text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 font-semibold text-xs transition";
+      } else {
+        btnHour.className = "px-3 py-1.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/70 text-indigo-700 dark:text-indigo-300 font-bold text-xs transition";
+        btnProd.className = "px-3 py-1.5 rounded-xl text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 font-semibold text-xs transition";
+      }
+      updateChart();
     }
 
-    // EXCEL ÇIXARIŞI (.XLSX)
+    function updateChart() {
+      if (!mainChart) return;
+
+      if (activeChartTab === 'products') {
+        // Ən çox satılan məhsullar
+        const counts = {};
+        filteredRecords.forEach(item => {
+          if (item.emeliyyat_tipi === 'QAYTARILMA') return;
+          const name = item.mehsul_adi || 'Naməlum';
+          counts[name] = (counts[name] || 0) + (parseFloat(item.say) || 1);
+        });
+
+        const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 6);
+        mainChart.config.type = 'bar';
+        mainChart.data.labels = sorted.map(i => i[0].length > 14 ? i[0].substring(0, 14) + '...' : i[0]);
+        mainChart.data.datasets = [{
+          label: 'Satış Sayı',
+          data: sorted.map(i => i[1]),
+          backgroundColor: 'rgba(99, 102, 241, 0.85)',
+          borderRadius: 8
+        }];
+      } else {
+        // Saatlıq Aktivlik (08:00 - 22:00)
+        const hours = Array(24).fill(0);
+        filteredRecords.forEach(item => {
+          if (item.emeliyyat_tipi === 'QAYTARILMA') return;
+          const h = new Date(item.tarix).getHours();
+          hours[h] += 1;
+        });
+
+        // 08:00 - 22:00 arasını göstərək
+        const displayHours = [];
+        const displayData = [];
+        for (let i = 8; i <= 22; i++) {
+          displayHours.push(`${i}:00`);
+          displayData.push(hours[i] || 0);
+        }
+
+        mainChart.config.type = 'line';
+        mainChart.data.labels = displayHours;
+        mainChart.data.datasets = [{
+          label: 'Satış Sayı',
+          data: displayData,
+          borderColor: '#10b981',
+          backgroundColor: 'rgba(16, 185, 129, 0.15)',
+          tension: 0.35,
+          fill: true,
+          pointRadius: 3
+        }];
+      }
+
+      mainChart.update();
+    }
+
+    // 11. EXCEL ÇIXARIŞI (Maya və Qazanc Sütunları ilə)
     function exportToExcel() {
       if (filteredRecords.length === 0) {
         showToast("Xəbərdarlıq", "Çıxarış üçün heç bir qeyd yoxdur.", "amber");
         return;
       }
 
+      let totalSatis = 0;
+      let totalMaya = 0;
+      let totalQazanc = 0;
+
       const rows = filteredRecords.map((item, idx) => {
         const dateObj = new Date(item.tarix);
         const formattedDate = dateObj.toLocaleDateString('az-AZ') + ' ' + dateObj.toLocaleTimeString('az-AZ');
-        
+        const mebleg = parseFloat(item.mebleg) || 0;
+        const maya = parseFloat(item.alis_qiymeti) || 0;
+        const qazanc = (item.qazanc !== undefined && item.qazanc !== null) ? parseFloat(item.qazanc) : (mebleg - maya);
+
+        totalSatis += mebleg;
+        totalMaya += maya;
+        totalQazanc += qazanc;
+
         return {
           "№": idx + 1,
           "Tarix": formattedDate,
           "Qəbz ID": item.yerli_satis_id || '',
           "Məhsul Adı": item.mehsul_adi || '',
-          "Miqdar (Say)": parseFloat(item.say) || 0,
-          "Məbləğ (AZN)": parseFloat(item.mebleg) || 0,
-          "Əməliyyat Tipi": item.emeliyyat_tipi || 'SATIŞ',
-          "Ödəniş Növü": item.odenis_novu || 'Nağd',
-          "Müştəri Adı": item.musteri_adi || '-',
+          "Say": parseFloat(item.say) || 0,
+          "Satış Məbləği (AZN)": mebleg,
+          "Maya Dəyəri (AZN)": maya,
+          "Xalis Qazanc (AZN)": qazanc,
+          "Əməliyyat": item.emeliyyat_tipi || 'SATIŞ',
+          "Ödəniş": item.odenis_novu || 'Nağd',
+          "Müştəri": item.musteri_adi || '-',
           "Sahib": item.sahib_adi || 'Bilinmir'
         };
       });
 
+      // Yekun Sətir
+      rows.push({
+        "№": "YEKUN",
+        "Tarix": "-",
+        "Qəbz ID": "-",
+        "Məhsul Adı": "CƏMİ TOPLAM",
+        "Say": "-",
+        "Satış Məbləği (AZN)": totalSatis,
+        "Maya Dəyəri (AZN)": totalMaya,
+        "Xalis Qazanc (AZN)": totalQazanc,
+        "Əməliyyat": "-",
+        "Ödəniş": "-",
+        "Müştəri": "-",
+        "Sahib": "-"
+      });
+
       const worksheet = XLSX.utils.json_to_sheet(rows);
-      // Sütun genişlikləri
       worksheet['!cols'] = [
-        { wch: 5 },  // №
+        { wch: 8 },  // №
         { wch: 20 }, // Tarix
-        { wch: 36 }, // Qəbz ID
-        { wch: 28 }, // Məhsul Adı
-        { wch: 12 }, // Say
-        { wch: 14 }, // Məbləğ
-        { wch: 16 }, // Əməliyyat
-        { wch: 14 }, // Ödəniş
+        { wch: 34 }, // Qəbz
+        { wch: 28 }, // Məhsul
+        { wch: 10 }, // Say
+        { wch: 18 }, // Satış Məbləği
+        { wch: 16 }, // Maya
+        { wch: 16 }, // Qazanc
+        { wch: 14 }, // Əməliyyat
+        { wch: 12 }, // Ödəniş
         { wch: 22 }, // Müştəri
         { wch: 14 }  // Sahib
       ];
 
       const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, "Satışlar");
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Satış və Qazanc");
 
       const todayStr = new Date().toISOString().split('T')[0];
-      const fileName = `Magaza_Hesabat_${todayStr}.xlsx`;
+      const fileName = `Papatya_Qazanc_Hesabati_${todayStr}.xlsx`;
       XLSX.writeFile(workbook, fileName);
 
-      showToast("Excel Hazırdır!", `${fileName} faylı endirildi.`, "emerald");
+      showToast("Excel Hazırdır!", `${fileName} endirildi.`, "emerald");
     }
 
-    // TARİX PRESETLƏRİ
+    // 12. Tarix Presetləri
     function initDatePresetToday() {
       setDatePreset('today');
     }
@@ -689,14 +1203,13 @@
       const today = new Date();
       const todayStr = today.toISOString().split('T')[0];
 
-      // Düymə stillərini yenilə
       ['today', 'yesterday', 'this_week', 'this_month', 'all'].forEach(k => {
         const btn = document.getElementById(`preset_${k}`);
         if (btn) {
           if (k === type) {
-            btn.className = "px-3 py-1.5 rounded-xl bg-brand-600 text-white transition whitespace-nowrap shadow-sm";
+            btn.className = "px-3.5 py-2 rounded-2xl bg-brand-600 text-white transition whitespace-nowrap shadow-xs";
           } else {
-            btn.className = "px-3 py-1.5 rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200 transition whitespace-nowrap";
+            btn.className = "px-3.5 py-2 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition whitespace-nowrap";
           }
         }
       });
@@ -707,9 +1220,8 @@
       } else if (type === 'yesterday') {
         const y = new Date();
         y.setDate(y.getDate() - 1);
-        const yStr = y.toISOString().split('T')[0];
-        document.getElementById('filterStartDate').value = yStr;
-        document.getElementById('filterEndDate').value = yStr;
+        document.getElementById('filterStartDate').value = y.toISOString().split('T')[0];
+        document.getElementById('filterEndDate').value = y.toISOString().split('T')[0];
       } else if (type === 'this_week') {
         const firstDay = new Date(today.setDate(today.getDate() - today.getDay() + (today.getDay() === 0 ? -6 : 1)));
         document.getElementById('filterStartDate').value = firstDay.toISOString().split('T')[0];
@@ -727,15 +1239,14 @@
     }
 
     function onCustomDateChange() {
-      // Preset stillərini söndür
       ['today', 'yesterday', 'this_week', 'this_month', 'all'].forEach(k => {
         const btn = document.getElementById(`preset_${k}`);
-        if (btn) btn.className = "px-3 py-1.5 rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200 transition whitespace-nowrap";
+        if (btn) btn.className = "px-3.5 py-2 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 transition whitespace-nowrap";
       });
       applyFilters();
     }
 
-    // Tənzimləmələr Modalı Funksiyaları
+    // 13. Tənzimləmələr Modalı
     function openSettingsModal() {
       const modal = document.getElementById('settingsModal');
       modal.classList.remove('hidden');
@@ -753,18 +1264,18 @@
       const key = document.getElementById('cfgSupabaseKey').value.trim();
 
       if (!url || !key) {
-        alert("Zəhmət olmasa həm URL, həm də Anon Key daxil edin.");
+        alert("URL və Anon Key daxil edin.");
         return;
       }
 
       localStorage.setItem('supabase_url', url);
       localStorage.setItem('supabase_key', key);
       closeSettingsModal();
-      showToast("Ayarlar Saxlanıldı", "Supabase bağlantısı yenidən başladılır...", "emerald");
+      showToast("Ayarlar Saxlanıldı", "Supabase bağlantısı yenilənir...", "emerald");
       initSupabase();
     }
 
-    // Toast Bildiriş
+    // 14. Toast Bildiriş
     let toastTimer = null;
     function showToast(title, msg, color = 'emerald') {
       const toast = document.getElementById('toast');
@@ -776,24 +1287,23 @@
       toastMsg.innerText = msg;
 
       if (color === 'rose') {
-        toastIcon.className = "w-8 h-8 rounded-lg bg-rose-500/20 text-rose-400 flex items-center justify-center";
+        toastIcon.className = "w-10 h-10 rounded-xl bg-rose-500/20 text-rose-400 flex items-center justify-center text-base flex-shrink-0";
       } else if (color === 'amber') {
-        toastIcon.className = "w-8 h-8 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center";
+        toastIcon.className = "w-10 h-10 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center text-base flex-shrink-0";
       } else {
-        toastIcon.className = "w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center";
+        toastIcon.className = "w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-base flex-shrink-0";
       }
 
-      toast.classList.remove('-translate-y-24', 'opacity-0');
+      toast.classList.remove('-translate-y-28', 'opacity-0');
       toast.classList.add('translate-y-0', 'opacity-100');
 
       if (toastTimer) clearTimeout(toastTimer);
       toastTimer = setTimeout(() => {
-        toast.classList.add('-translate-y-24', 'opacity-0');
+        toast.classList.add('-translate-y-28', 'opacity-0');
         toast.classList.remove('translate-y-0', 'opacity-100');
       }, 3500);
     }
 
-    // XSS qoruması
     function escapeHtml(text) {
       if (!text) return '';
       return String(text)
