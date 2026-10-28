@@ -1,0 +1,1 @@
+/* charts.js is unified inside app.js for 100% reliable execution */

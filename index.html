@@ -1,1385 +1,865 @@
 <!DOCTYPE html>
-<html lang="az" class="h-full">
+<html lang="az">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Papatya POS • Canlı Mobil İdarəetmə</title>
-  <meta name="theme-color" content="#4f46e5">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- Cyber Security & Data Protection Headers -->
+<meta http-equiv="X-Content-Type-Options" content="nosniff">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<title>Papatya — Kassa & Satışlar v2.0 (Canlı İdarəetmə)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+
+  <!-- MODUL STİLLƏR (Sürətli Keşləmə & Mobil Optimizasiyalı) -->
+  <link rel="stylesheet" href="./css/style.css">
+  <link rel="stylesheet" href="./css/mobile.css">
+
+  <!-- ============ PWA DƏSTƏK & MOBİL TƏTBİQ PARAMETRLƏRİ ============ -->
+  <link rel="manifest" id="manifestLink" href="./manifest.json">
+  <meta name="theme-color" content="#070b14">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Kassa Paneli">
+  <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png">
+  <link rel="icon" type="image/svg+xml" href="./icons/icon.svg">
+  <meta name="mobile-web-app-capable" content="yes">
 
-  <!-- Tailwind CSS CDN with typography & custom config -->
-  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- INSTANT AUTH CHECK (Şifrə yadda saxlanılıbsa dərhal keçid) -->
   <script>
-    tailwind.config = {
-      darkMode: 'class',
-      theme: {
-        extend: {
-          colors: {
-            brand: {
-              50: '#f5f7ff',
-              100: '#ebf0fe',
-              500: '#6366f1',
-              600: '#4f46e5',
-              700: '#4338ca',
-              800: '#3730a3',
-              900: '#312e81',
-            }
-          },
-          fontFamily: {
-            sans: ['Outfit', 'sans-serif'],
-            mono: ['JetBrains Mono', 'monospace'],
-          }
+    (function() {
+      try {
+        var isRem = localStorage.getItem('kassa_remember_login') === 'true';
+        var token = localStorage.getItem('kassa_auth_token');
+        if (isRem && token) {
+          document.documentElement.classList.add('is-authenticated');
+        } else {
+          document.documentElement.classList.remove('is-authenticated');
         }
-      }
-    }
+      } catch(e) {}
+    })();
   </script>
 
-  <!-- Google Fonts -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <!-- FontAwesome Icons -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-  <!-- Supabase JS Client v2 -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <!-- Chart.js -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <!-- SheetJS (Excel) -->
-  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-
-  <style>
-    body {
-      font-family: 'Outfit', sans-serif;
-      -webkit-tap-highlight-color: transparent;
-      user-select: none;
-    }
-    .mono { font-family: 'JetBrains Mono', monospace; }
-    
-    /* Smooth glowing animations */
-    @keyframes pulse-dot {
-      0%, 100% { transform: scale(1); opacity: 1; }
-      50% { transform: scale(1.3); opacity: 0.4; }
-    }
-    .pulse-dot { animation: pulse-dot 2s infinite ease-in-out; }
-    
-    /* Custom subtle scrollbars */
-    ::-webkit-scrollbar { width: 4px; height: 4px; }
-    ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb { background: rgba(156, 163, 175, 0.4); border-radius: 4px; }
-  </style>
 </head>
-<body class="bg-slate-100 dark:bg-slate-950 text-slate-800 dark:text-slate-100 min-h-screen flex flex-col antialiased transition-colors duration-200">
+<body>
 
-  <!-- ================= GİRİŞ / KİLİD EKRANI (LOCK SCREEN) ================= -->
-  <div id="lockScreen" class="fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-2xl flex items-center justify-center p-4 transition-all duration-300">
-    <div class="bg-white dark:bg-slate-900 rounded-3xl max-w-sm w-full p-7 shadow-2xl border border-slate-200 dark:border-slate-800 text-center space-y-5">
-      
-      <div class="w-16 h-16 rounded-3xl bg-gradient-to-tr from-indigo-600 to-violet-500 text-white flex items-center justify-center mx-auto text-2xl shadow-xl shadow-indigo-500/30">
-        <i class="fa-solid fa-lock"></i>
-      </div>
+<div class="scroll-progress" id="scrollProgress"></div>
 
-      <div>
-        <h2 class="text-xl font-black text-slate-900 dark:text-white">Papatya POS</h2>
-        <p class="text-xs text-slate-400 mt-1">İdarəetmə panelinə daxil olmaq üçün parolu yazın</p>
-      </div>
+<div class="bg">
+  <div class="orb o1"></div>
+  <div class="orb o2"></div>
+  <div class="orb o3"></div>
+  <div class="orb o4"></div>
+</div>
 
-      <form onsubmit="checkPassword(event)" class="space-y-3">
-        <div class="relative">
-          <input type="password" id="passInput" placeholder="Giriş parolu..." autofocus 
-                 class="w-full bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-2xl px-4 py-3 text-center text-sm font-bold text-slate-800 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500 transition">
+<!-- AUTH SCREEN (SUPABASE AUTH & TƏHLÜKƏSİZ GİRİŞ) -->
+<div id="authScreen" class="modal-backdrop hidden">
+  <div id="authBox" class="modal-card" style="text-align:center;max-width:360px;padding:26px 22px">
+    <div style="width:50px;height:50px;border-radius:16px;margin:0 auto 10px;background:linear-gradient(135deg,#22d3ee,#6366f1);display:grid;place-items:center;box-shadow:0 8px 20px -4px rgba(99,102,241,.6)">
+      <i class="fa-solid fa-shield-halved" style="font-size:22px;color:#fff"></i>
+    </div>
+    <h2 style="font-size:18px;font-weight:800;letter-spacing:-.3px;color:#fff;margin:0 0 4px" id="loginStoreTitle">Satış İdarəetmə Paneli</h2>
+    <div id="authStorePill" style="display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:99px;background:rgba(34,211,238,.08);border:1px solid rgba(34,211,238,.2);font-size:11px;font-weight:700;color:#22d3ee;margin-bottom:12px">
+      <i class="fa-solid fa-store"></i> <span id="authStoreName">Papatya (Şərikli)</span>
+    </div>
+    
+    <div style="position:relative;margin-bottom:10px;text-align:left">
+      <i class="fa-solid fa-envelope" style="position:absolute;left:13px;top:50%;transform:translateY(-50%);color:#64748b;font-size:12.5px"></i>
+      <input type="email" id="authEmailInput" autocomplete="off" placeholder="Email (istəyə bağlı)..." class="cyber-input" style="padding-left:36px;font-size:12.5px" onkeydown="if(event.key==='Enter') $('passwordInput').focus()">
+    </div>
+
+    <div style="position:relative;margin-bottom:10px;text-align:left">
+      <i class="fa-solid fa-lock" style="position:absolute;left:13px;top:50%;transform:translateY(-50%);color:#64748b;font-size:12.5px"></i>
+      <input type="password" id="passwordInput" autocomplete="new-password" placeholder="Giriş şifrəsi..." class="cyber-input" style="padding-left:36px;padding-right:38px;letter-spacing:1px;font-size:13.5px" onkeydown="if(event.key==='Enter') verifyPassword()">
+      <button type="button" onclick="togglePasswordVisibility()" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;color:#64748b;cursor:pointer;font-size:13px">
+        <i id="pwdToggleIcon" class="fa-solid fa-eye"></i>
+      </button>
+    </div>
+    <div id="authError" style="display:none;color:#fb7185;background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.25);padding:8px 10px;border-radius:10px;font-size:11.5px;font-weight:600;margin-bottom:12px;text-align:left">
+      <i class="fa-solid fa-circle-exclamation"></i> Şifrə yanlışdır! Yenidən yoxlayın.
+    </div>
+    
+    <div style="display:flex;align-items:center;justify-content:center;gap:7px;margin-bottom:14px;font-size:11.5px;color:#94a3b8;cursor:pointer">
+      <input type="checkbox" id="rememberPasswordChk" checked style="accent-color:#22d3ee;width:14px;height:14px;cursor:pointer">
+      <label for="rememberPasswordChk" style="cursor:pointer;user-select:none">Şifrəni yadda saxla</label>
+    </div>
+    <button onclick="verifyPassword()" class="cyber-btn-primary" style="margin-bottom:12px;padding:11px 16px">
+      <span>Daxil Ol</span> <i class="fa-solid fa-arrow-right"></i>
+    </button>
+    <div style="display:flex;align-items:center;justify-content:center;gap:6px;padding-top:10px;border-top:1px solid var(--line-2);font-size:11px;color:#64748b">
+      <i class="fa-solid fa-shield-halved" style="color:#22d3ee"></i> <span>256-Bit SSL & Server Təhlükəsizliyi</span>
+    </div>
+  </div>
+</div>
+
+<!-- SETTINGS MODAL -->
+<div id="settingsModal" class="modal-backdrop hidden">
+  <div class="modal-card settings-card">
+    <div class="modal-header">
+      <div class="modal-header-title">
+        <div class="modal-header-ico"><i class="fa-solid fa-sliders"></i></div>
+        <div>
+          <h3 style="font-size:16px;font-weight:800;color:#fff">Panel Ayarları</h3>
+          <p style="font-size:11px;color:#707c96">Supabase layihəsi, mağaza adı və təhlükəsizlik</p>
         </div>
-
-        <div id="passError" class="text-xs text-rose-500 font-bold hidden">
-          <i class="fa-solid fa-circle-exclamation mr-1"></i> Səhv parol! Yenidən cəhd edin.
+      </div>
+      <button class="modal-close" onclick="closeSettingsModal()"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="form-group" style="background:rgba(255,255,255,.03);padding:14px;border-radius:14px;border:1px solid var(--line-2)">
+      <label class="form-label" style="margin-bottom:8px;display:flex;align-items:center;justify-content:space-between">
+        <span><i class="fa-solid fa-database" style="color:#22d3ee"></i> Aktiv Baza (Mağaza)</span>
+        <span style="font-size:11px;color:#22d3ee;font-weight:700">1-Kliklə Keçid</span>
+      </label>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px" id="modalStoreCards">
+        <div class="store-card-opt active" id="cardGubus" onclick="selectProfileInModal('gubus')">
+          <div style="font-weight:800;font-size:12.5px;display:flex;align-items:center;gap:6px"><i class="fa-solid fa-handshake" style="color:#34d399"></i> Papatya (Şərikli)</div>
+          <div style="font-size:10px;color:var(--muted);margin-top:3px">Elşən &amp; Gülnarə</div>
         </div>
-
-        <button type="submit" class="w-full py-3 rounded-2xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white font-bold text-sm shadow-lg shadow-indigo-600/25 active:scale-95 transition cursor-pointer">
-          Daxil Ol <i class="fa-solid fa-arrow-right ml-1"></i>
+        <div class="store-card-opt" id="cardAburCubur" onclick="selectProfileInModal('aburcubur')">
+          <div style="font-weight:800;font-size:12.5px;display:flex;align-items:center;gap:6px"><i class="fa-solid fa-store" style="color:#22d3ee"></i> Abur Çubur</div>
+          <div style="font-size:10px;color:var(--muted);margin-top:3px">Bulud Bazası 1</div>
+        </div>
+        <div class="store-card-opt" id="cardPapatya2" onclick="selectProfileInModal('papatya2')">
+          <div style="font-weight:800;font-size:12.5px;display:flex;align-items:center;gap:6px"><i class="fa-solid fa-seedling" style="color:#a855f7"></i> Papatya 2</div>
+          <div style="font-size:10px;color:var(--muted);margin-top:3px">Bulud Bazası 2</div>
+        </div>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label"><i class="fa-solid fa-store"></i> Mağaza / Filial Adı</label>
+      <input type="text" id="settingStoreName" placeholder="Məs: 1-ci Mağaza (Mərkəz)" class="cyber-input">
+      <span class="form-desc">Başlıqda və hesabatlarda görünəcək ad</span>
+    </div>
+    <div class="form-group">
+      <label class="form-label"><i class="fa-solid fa-mobile-screen-button"></i> PWA Tətbiq Adı (Ana Ekranda İkon Adı)</label>
+      <input type="text" id="settingPwaName" placeholder="Məs: Abur Çubur Kassa və ya Papatya 2" class="cyber-input">
+      <span class="form-desc">Telefon və ya kompüterin ana ekranına əlavə edərkən görünəcək tətbiq adı</span>
+    </div>
+    <div class="form-group">
+      <label class="form-label"><i class="fa-solid fa-cloud"></i> Supabase Project URL</label>
+      <input type="text" id="settingSupabaseUrl" placeholder="https://xxxx.supabase.co" class="cyber-input" style="font-size:11.5px">
+    </div>
+    <div class="form-group">
+      <label class="form-label" style="display:flex;align-items:center;justify-content:space-between">
+        <span><i class="fa-solid fa-key"></i> Supabase Anon Key</span>
+        <button type="button" onclick="toggleSettingsKeyVisibility()" style="background:none;border:none;color:#22d3ee;font-size:11px;cursor:pointer;display:flex;align-items:center;gap:4px">
+          <i id="keyToggleIcon" class="fa-solid fa-eye"></i> Göstər / Gizlət
         </button>
-      </form>
-
-      <div class="text-[11px] text-slate-400">
-        Yalnız səlahiyyətli mağaza rəhbərliyi üçün
+      </label>
+      <input type="password" id="settingSupabaseKey" placeholder="••••••••••••••••" class="cyber-input" style="font-family:monospace;font-size:11.5px">
+    </div>
+    <div style="display:flex;gap:10px;margin-bottom:12px">
+      <button type="button" onclick="testSupabaseInHtml()" id="btnTestConn" class="cyber-btn-secondary" style="flex:1"><i class="fa-solid fa-network-wired" style="color:#22d3ee"></i> Bağlantını Yoxla</button>
+      <button type="button" onclick="resetDefaultCredentials()" class="cyber-btn-secondary" title="Standart açarları bərpa et"><i class="fa-solid fa-rotate-left"></i> Sıfırla</button>
+    </div>
+    <div id="testConnResult" style="display:none;padding:10px 14px;border-radius:12px;font-size:11.5px;line-height:1.45;margin-bottom:14px"></div>
+    <div class="form-group" style="padding-top:12px;border-top:1px solid var(--line-2)">
+      <label class="form-label"><i class="fa-solid fa-envelope" style="color:#22d3ee"></i> Supabase Giriş Emaili</label>
+      <input type="email" id="settingAuthEmail" placeholder="Supabase-də təyin etdiyiniz email..." class="cyber-input">
+      <span class="form-desc">Supabase Authentication-da qeydiyyatdan keçirdiyiniz email</span>
+    </div>
+    <div class="form-group">
+      <label class="form-label" style="display:flex;align-items:center;justify-content:space-between">
+        <span><i class="fa-solid fa-lock"></i> Giriş Şifrəsi</span>
+        <button type="button" onclick="toggleSettingsPwdVisibility()" style="background:none;border:none;color:#22d3ee;font-size:11px;cursor:pointer;display:flex;align-items:center;gap:4px">
+          <i id="settingPwdToggleIcon" class="fa-solid fa-eye"></i> Göstər / Gizlət
+        </button>
+      </label>
+      <input type="password" id="settingPassword" placeholder="Giriş şifrəsi..." class="cyber-input">
+      <span class="form-desc">Panelə daxil olarkən tələb olunan şifrə</span>
+    </div>
+    <div style="padding-top:12px;border-top:1px solid var(--line-2);margin-bottom:18px">
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <span class="form-label" style="margin:0"><i class="fa-solid fa-volume-high"></i> Səs Bildirişi</span>
+        <button type="button" onclick="testSoundInSettings()" class="cyber-btn-secondary" style="padding:6px 12px;font-size:11px"><i class="fa-solid fa-play" style="color:#34d399"></i> Səsi Yoxla</button>
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;padding-top:14px;border-top:1px solid var(--line-2)">
+      <button onclick="closeSettingsModal()" class="cyber-btn-secondary" style="width:35%">Bağla</button>
+      <button onclick="saveSettingsFromModal()" class="cyber-btn-primary" style="width:65%"><i class="fa-solid fa-floppy-disk"></i> Yadda Saxla & Tətbiq Et</button>
+    </div>
+    <div style="margin-top:10px">
+      <button type="button" class="btn-danger-outline" style="width:100%;padding:10px 14px;justify-content:center;border-color:rgba(239,68,68,.4);color:#fca5a5;background:rgba(239,68,68,.08)" onclick="logout(true)">
+        <i class="fa-solid fa-arrow-right-from-bracket"></i> Hesabdan Çıxış Et (Yeni Email/Şifrə ilə Giriş)
+      </button>
+    </div>
+    <div style="margin-top:22px;padding-top:16px;border-top:1px solid rgba(251,113,133,.2)">
+      <div style="font-size:12px;font-weight:800;color:#fb7185;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;display:flex;align-items:center;gap:6px">
+        <i class="fa-solid fa-triangle-exclamation"></i> Baza Təmizləmə (Ayrı-Ayrı)
+      </div>
+      <p style="font-size:11.5px;color:#8894af;margin-bottom:12px;line-height:1.4">Testlər üçün istədiyiniz məlumat kateqoriyasını Supabase-dən şifrə ilə təhlükəsiz şəkildə ayrı-ayrılıqda silə bilərsiniz:</p>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <button type="button" class="btn-danger-outline" onclick="openDeleteCategoryModal('satislar')"><i class="fa-solid fa-receipt"></i><span>1. Satışları Sil</span></button>
+        <button type="button" class="btn-danger-outline" onclick="openDeleteCategoryModal('mehsullar')"><i class="fa-solid fa-boxes-stacked"></i><span>2. Anbardakı Malları Sil</span></button>
+        <button type="button" class="btn-danger-outline" onclick="openDeleteCategoryModal('musteriler')"><i class="fa-solid fa-users"></i><span>3. Müştəriləri və Borcları Sil</span></button>
       </div>
     </div>
   </div>
+</div>
 
-  <!-- ================= TOPBAR ================= -->
-  <header class="sticky top-0 z-40 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-b border-slate-200/80 dark:border-slate-800 px-4 py-3 shadow-xs">
-    <div class="max-w-6xl mx-auto flex items-center justify-between gap-3">
-      
-      <!-- Logo & Status -->
-      <div class="flex items-center gap-3">
-        <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-indigo-600 via-indigo-500 to-violet-500 flex items-center justify-center text-white shadow-lg shadow-indigo-500/25">
-          <i class="fa-solid fa-store text-lg"></i>
-        </div>
+<!-- DELETE CONFIRM MODAL (TYPE-TO-CONFIRM TƏHLÜKƏSİZLİK QALXANI) -->
+<div id="deleteCategoryModal" class="modal-backdrop hidden">
+  <div class="modal-card" style="max-width:440px;border-color:rgba(251,113,133,.45)">
+    <div class="modal-header" style="border-bottom-color:rgba(251,113,133,.2)">
+      <div class="modal-header-title">
+        <div class="modal-header-ico" style="background:linear-gradient(140deg,#fb7185,#e11d48)"><i class="fa-solid fa-triangle-exclamation"></i></div>
         <div>
-          <div class="flex items-center gap-2">
-            <h1 class="text-base font-black tracking-tight text-slate-900 dark:text-white">Papatya POS</h1>
-            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 text-indigo-600 dark:bg-indigo-950/70 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800">Canlı PRO</span>
-          </div>
-          <div class="flex items-center gap-1.5 text-xs">
-            <span id="liveDot" class="w-2 h-2 rounded-full bg-emerald-500 pulse-dot"></span>
-            <span id="liveStatus" class="font-semibold text-emerald-600 dark:text-emerald-400 text-[11px]">Realtime Aktiv</span>
-          </div>
+          <h3 style="font-size:16px;font-weight:800;color:#fb7185" id="deleteModalTitle">Məlumatları Sil</h3>
+          <p style="font-size:11px;color:#707c96">Supabase Bazasından Təhlükəsiz Silinmə</p>
         </div>
       </div>
+      <button class="modal-close" onclick="closeDeleteCategoryModal()"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div id="deleteModalDesc" style="font-size:12px;color:#cbd5e1;line-height:1.5;margin-bottom:14px;padding:10px 12px;background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.25);border-radius:10px">Məlumatlar tamamilə silinəcək.</div>
+    
+    <div class="form-group" style="margin-bottom:12px">
+      <label class="form-label" style="color:#fb7185;font-size:11.5px">
+        <i class="fa-solid fa-keyboard"></i> 1. Təsdiq üçün böyük hərflərlə <b>SİLMƏK İSTƏYİRƏM</b> yazın:
+      </label>
+      <input type="text" id="deleteConfirmText" class="cyber-input" placeholder="SİLMƏK İSTƏYİRƏM" autocomplete="off" oninput="updateDeleteBtnState()">
+    </div>
 
-      <!-- Action Buttons -->
-      <div class="flex items-center gap-1.5 sm:gap-2">
-        <!-- Sound Toggle Button -->
-        <button onclick="toggleAudio()" id="audioBtn" class="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-600 dark:text-slate-300 flex items-center justify-center transition active:scale-90" title="Kassa səsi">
-          <i class="fa-solid fa-volume-high text-sm"></i>
-        </button>
+    <div class="form-group" style="margin-bottom:14px">
+      <label class="form-label" style="color:#fb7185;font-size:11.5px">
+        <i class="fa-solid fa-lock"></i> 2. Admin Təhlükəsizlik Şifrəsi:
+      </label>
+      <input type="password" id="deleteConfirmPassword" class="cyber-input" placeholder="Admin şifrəsini daxil edin..." oninput="updateDeleteBtnState()" onkeypress="if(event.key==='Enter')confirmDeleteCategory()">
+    </div>
 
-        <!-- Dark Mode Toggle Button -->
-        <button onclick="toggleDarkMode()" class="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-600 dark:text-slate-300 flex items-center justify-center transition active:scale-90" title="Qaranlıq rejim">
-          <i id="themeIcon" class="fa-solid fa-moon text-sm"></i>
-        </button>
+    <div id="deleteError" style="color:#fb7185;font-size:12px;margin-bottom:12px;display:none;font-weight:700"></div>
 
-        <!-- Refresh Button -->
-        <button onclick="loadData(true)" class="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-600 dark:text-slate-300 flex items-center justify-center transition active:scale-90" title="Yenilə">
-          <i class="fa-solid fa-rotate-right text-sm"></i>
-        </button>
+    <div style="display:flex;gap:10px">
+      <button type="button" class="cyber-btn-secondary" style="flex:1" onclick="closeDeleteCategoryModal()">İmtina</button>
+      <button type="button" id="btnConfirmDeleteCategory" class="cyber-btn-primary" style="flex:1;background:linear-gradient(135deg,#f43f5e,#e11d48);opacity:0.35;cursor:not-allowed;" disabled onclick="confirmDeleteCategory()"><i class="fa-solid fa-trash-can"></i> Silinməni Təsdiqlə</button>
+    </div>
+  </div>
+</div>
 
-        <!-- Settings Button -->
-        <button onclick="openSettingsModal()" class="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-600 dark:text-slate-300 flex items-center justify-center transition active:scale-90" title="Ayarlar">
-          <i class="fa-solid fa-gear text-sm"></i>
-        </button>
-
-        <!-- Logout Button -->
-        <button onclick="logout()" class="w-9 h-9 rounded-xl bg-rose-50 dark:bg-rose-950/50 hover:bg-rose-100 text-rose-600 dark:text-rose-400 flex items-center justify-center transition active:scale-90" title="Sistemdən Çıxış (Kilidlə)">
-          <i class="fa-solid fa-arrow-right-from-bracket text-sm"></i>
-        </button>
+<!-- NOTIFICATIONS MODAL -->
+<div id="notifModal" class="modal-backdrop hidden">
+  <div class="modal-card settings-card" style="max-width:480px">
+    <div class="modal-header">
+      <div class="modal-header-title">
+        <div class="modal-header-ico" style="background:linear-gradient(140deg,#3b82f6,#6366f1)"><i class="fa-solid fa-bell"></i></div>
+        <div>
+          <h3 style="font-size:16px;font-weight:800;color:#fff">Gələn Bildirişlər</h3>
+          <p style="font-size:11px;color:#707c96" id="notifSubText">0 bildiriş qeydə alınıb</p>
+        </div>
       </div>
+      <button class="modal-close" onclick="closeNotificationsModal()"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid var(--line-2)">
+      <span style="font-size:11px;color:#8894af">Son satış və əməliyyatlar</span>
+      <button type="button" onclick="clearAllNotifications()" class="cyber-btn-secondary" style="padding:5px 12px;font-size:11px;color:#fda4af;border-color:rgba(251,113,133,.3);background:rgba(251,113,133,.08)"><i class="fa-solid fa-trash-can"></i> Hamısını Sil</button>
+    </div>
+    <div id="notifListContainer" style="max-height:360px;overflow-y:auto;display:flex;flex-direction:column;gap:8px;padding-right:4px"></div>
+    <div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--line-2)">
+      <button onclick="closeNotificationsModal()" class="cyber-btn-secondary" style="width:100%">Bağla</button>
+    </div>
+  </div>
+</div>
 
+<!-- RECEIPT MODAL -->
+<div id="receiptModal" class="modal-backdrop hidden" onclick="if(event.target===this) closeReceiptModal()">
+  <div class="modal-card receipt-card">
+    <div class="modal-header">
+      <div class="modal-header-title">
+        <div class="modal-header-ico" style="background:linear-gradient(140deg,#10b981,#059669)"><i class="fa-solid fa-receipt"></i></div>
+        <div>
+          <h3 style="font-size:16px;font-weight:800;color:#fff">Kassa Çeki</h3>
+          <p style="font-size:11px;color:#707c96" id="rcptSubTitle">Satış və ödəniş detalları</p>
+        </div>
+      </div>
+      <button class="modal-close" onclick="closeReceiptModal()"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="thermal-receipt-wrap">
+      <div class="thermal-receipt" id="thermalReceipt">
+        <div class="rcpt-header">
+          <div class="rcpt-store-name" id="rcptStoreName">Papatya</div>
+          <div class="rcpt-divider">--------------------------------</div>
+        </div>
+        <div class="rcpt-meta">
+          <div class="rcpt-meta-row"><span>Qəbz №:</span> <b id="rcptNumber">#0000</b></div>
+          <div class="rcpt-meta-row"><span>Tarix:</span> <b id="rcptDate">--.--.----</b></div>
+          <div class="rcpt-meta-row"><span>Saat:</span> <b id="rcptTime">--:--</b></div>
+          <div class="rcpt-meta-row" id="rcptSahibRow"><span>Şərik (Sahib):</span> <b id="rcptSahib">Elşən</b></div>
+          <div class="rcpt-meta-row"><span>Müştəri:</span> <b id="rcptCustomer"></b></div>
+          <div class="rcpt-meta-row" id="rcptDebtRow" style="display:none"><span>Borc:</span> <b id="rcptDebtVal" style="color:#dc2626">0.00 ₼</b></div>
+        </div>
+        <div class="rcpt-divider">--------------------------------</div>
+        <div class="rcpt-items" id="rcptItemsList"></div>
+        <div class="rcpt-divider">================================</div>
+        <div class="rcpt-totals">
+          <div class="rcpt-total-row"><span>Məhsul sayı:</span> <b id="rcptTotalItems">0</b></div>
+          <div class="rcpt-total-main"><span>YEKUN CƏM:</span><span id="rcptGrandTotal">0.00 ₼</span></div>
+        </div>
+        <div class="rcpt-divider">--------------------------------</div>
+        <div class="rcpt-footer">
+          <div>Bizi seçdiyiniz üçün təşəkkür edirik!</div>
+          <div style="margin-top:2px;font-size:9.5px;color:#9ca3af" id="rcptFooterGen">Kassa Sistemi • Elektron Qəbz</div>
+        </div>
+      </div>
+    </div>
+    <div class="receipt-actions">
+      <button type="button" class="btn-wa" onclick="shareReceiptWhatsApp()"><i class="fa-brands fa-whatsapp" style="font-size:18px"></i><span>WhatsApp ilə Göndər</span></button>
+      <button type="button" class="btn-rcpt-img" onclick="downloadReceiptImage()"><i class="fa-solid fa-camera"></i><span>Şəkil Kimi Endir</span></button>
+      <button type="button" class="btn-rcpt-print" onclick="printReceiptDirect()"><i class="fa-solid fa-print"></i><span>Çap Et</span></button>
+    </div>
+  </div>
+</div>
+
+<!-- LOSS MODAL -->
+<div id="lossModal" class="modal-backdrop hidden" onclick="if(event.target===this) closeLossModal()">
+  <div class="modal-card loss-card" style="max-width:840px;max-height:92vh;overflow-y:auto;padding:26px">
+    <div class="modal-header">
+      <div class="modal-header-title">
+        <div class="modal-header-ico" style="background:linear-gradient(140deg,#f43f5e,#be123c)"><i class="fa-solid fa-triangle-exclamation"></i></div>
+        <div>
+          <h3 style="font-size:17px;font-weight:800;color:#fff">Kassa İtkisi və Sıfır Qazanc Dedektoru</h3>
+          <p style="font-size:11.5px;color:#707c96" id="lossModalSubtitle">Maya dəyərindən ucuz və ya qazancsız vurulmuş əməliyyatların analizi</p>
+        </div>
+      </div>
+      <button class="modal-close" onclick="closeLossModal()"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="loss-kpi-grid">
+      <div class="loss-kpi-card danger">
+        <div class="loss-kpi-top"><span class="loss-kpi-lbl">Xalis İtki Məbləği</span><i class="fa-solid fa-arrow-trend-down"></i></div>
+        <div class="loss-kpi-val" id="lossModalTotalLoss">-0.00 ₼</div>
+        <div class="loss-kpi-sub" id="lossModalLossCount">0 əməliyyatda birbaşa zərər</div>
+      </div>
+      <div class="loss-kpi-card warning">
+        <div class="loss-kpi-top"><span class="loss-kpi-lbl">Sıfır Qazancla Satış</span><i class="fa-solid fa-circle-minus"></i></div>
+        <div class="loss-kpi-val" id="lossModalZeroCount">0 ədəd</div>
+        <div class="loss-kpi-sub">Maya dəyəri ilə eyni qiymətə satılıb</div>
+      </div>
+      <div class="loss-kpi-card info">
+        <div class="loss-kpi-top"><span class="loss-kpi-lbl">İtkili Satış Dövriyyəsi</span><i class="fa-solid fa-receipt"></i></div>
+        <div class="loss-kpi-val" id="lossModalTurnover">0.00 ₼</div>
+        <div class="loss-kpi-sub" id="lossModalTotalCount">Cəmi 0 şübhəli satış</div>
+      </div>
+    </div>
+    <div style="margin-top:20px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;gap:10px;flex-wrap:wrap">
+        <span style="font-size:12px;font-weight:700;color:#cbd5e1;text-transform:uppercase;letter-spacing:.6px">Aşkarlanmış Əməliyyatların Siyahısı</span>
+        <button type="button" class="btn excel-btn" onclick="exportLossExcel()" style="padding:6px 12px;font-size:11.5px"><i class="fa-solid fa-file-excel"></i> İtki Hesabatını Yüklə (Excel)</button>
+      </div>
+      <div class="loss-tbl-wrap">
+        <table class="loss-tbl">
+          <thead>
+            <tr>
+              <th>Tarix / Saat</th><th>Məhsul Adı</th><th>Miqdar</th><th>Maya</th><th>Satış</th><th>Zərər / Fərq</th><th>Status</th><th>Çek</th>
+            </tr>
+          </thead>
+          <tbody id="lossModalTbody"></tbody>
+        </table>
+      </div>
+    </div>
+    <div style="margin-top:22px;display:flex;justify-content:flex-end;gap:12px">
+      <button type="button" class="cyber-btn-secondary" onclick="closeLossModal()">Bağla</button>
+    </div>
+  </div>
+</div>
+
+<!-- COMMAND PALETTE -->
+<div class="cmd-overlay" id="cmdOverlay">
+  <div class="cmd-box">
+    <div class="cmd-input-wrap">
+      <i class="fa-solid fa-magnifying-glass"></i>
+      <input type="text" class="cmd-input" id="cmdInput" placeholder="Əmr və ya axtarış yazın..." autocomplete="off">
+      <kbd>ESC</kbd>
+    </div>
+    <div class="cmd-results" id="cmdResults"></div>
+  </div>
+</div>
+
+<!-- TOAST CONTAINER -->
+<div class="toast-container" id="toastContainer">
+  <div id="toastNotification" class="toast">
+    <div id="toastIco" class="toast-ico">
+      <i class="fa-solid fa-cart-shopping"></i>
+    </div>
+    <div class="toast-body">
+      <div id="toastTitle" class="toast-title">Yeni Satış</div>
+      <div id="toastMsg" class="toast-msg">0.00 ₼</div>
+      <div id="toastTime" class="toast-time" style="font-size:10px;color:#8894af;margin-top:2px;display:flex;gap:5px;align-items:center;font-weight:600"></div>
+    </div>
+  </div>
+</div>
+
+<!-- CONFETTI LAYER -->
+<div class="confetti" id="confettiLayer"></div>
+
+<!-- MAIN PAGE -->
+<div class="wrap">
+
+  <!-- HEADER -->
+  <header class="hdr anim-cascade delay-0">
+    <div class="brand">
+      <div class="logo"><i class="fa-solid fa-chart-pie"></i></div>
+      <div>
+        <h1 id="appStoreTitle">Satış İdarəetmə Paneli</h1>
+        <p>Nəğd &amp; Nisyə satışların real vaxt analitikası</p>
+      </div>
+    </div>
+    <div class="hdr-right">
+      <button class="cmd-trigger" onclick="openCmdPalette()" title="Sürətli Əmr (Ctrl+K)">
+        <i class="fa-solid fa-magnifying-glass"></i>
+        <span>Axtar / Əmr</span>
+        <kbd>⌘K</kbd>
+      </button>
+      <div class="live" id="liveIndicator"><span class="dot" id="liveDot"></span><span id="liveStatusText">CANLI</span></div>
+      <div class="clock" id="clock">--:--:--</div>
+      <div class="store-badge-selector" title="Aktiv Mağaza / Baza Seçimi">
+        <i class="fa-solid fa-store" style="color:#22d3ee;font-size:12px"></i>
+        <select id="headerStoreSelect" class="store-dropdown" onchange="onHeaderStoreChange(this.value)">
+          <option value="gubus">Papatya (Şərikli)</option>
+          <option value="aburcubur">Abur Çubur</option>
+          <option value="papatya2">Papatya 2</option>
+          <option value="custom">Fərdi Baza</option>
+        </select>
+      </div>
+      <a href="anbar.html" class="nav-switch-btn" title="Anbar Paneli"><i class="fa-solid fa-boxes-stacked"></i><span>Anbar</span></a>
+      <a href="musteriler.html" class="nav-switch-btn" title="Müştərilər Paneli"><i class="fa-solid fa-users"></i><span>Müştərilər</span></a>
+      <button class="hdr-btn" id="soundBtn" onclick="toggleSound()" title="Səs effektləri"><i id="soundIcon" class="fa-solid fa-volume-high"></i></button>
+      <button class="hdr-btn" onclick="refreshData()" title="Yenilə (R)"><i class="fa-solid fa-rotate"></i></button>
+            <button class="hdr-btn" id="fullscreenBtn" onclick="toggleFullScreen()" title="Tam ekran rejimi (F11)"><i id="fullscreenIcon" class="fa-solid fa-expand"></i></button>
+      <button class="hdr-btn" id="themeBtn" onclick="toggleTheme()" title="Ağ rejimə keç"><i id="themeIcon" class="fa-solid fa-sun" style="color:#fbbf24"></i></button>
+      <button class="hdr-btn notif-btn" id="notifBellBtn" onclick="toggleNotificationsModal()" title="Gələn Bildirişlər"><i class="fa-solid fa-bell"></i><span class="notif-badge" id="notifBadge" style="display:none">0</span></button>
+      <button class="hdr-btn" onclick="openSettingsModal()" title="Ayarlar"><i class="fa-solid fa-gear"></i></button>
+      <button class="hdr-btn danger" onclick="logout()" title="Çıxış"><i class="fa-solid fa-arrow-right-from-bracket"></i></button>
     </div>
   </header>
 
-  <!-- ================= TOAST NOTIFICATION ================= -->
-  <div id="toast" class="fixed top-16 right-4 left-4 sm:left-auto sm:w-96 z-50 transform -translate-y-28 opacity-0 transition-all duration-300 pointer-events-none">
-    <div class="bg-slate-900/95 dark:bg-slate-800/95 backdrop-blur-md text-white p-4 rounded-2xl shadow-2xl flex items-center gap-3.5 border border-slate-700/60">
-      <div id="toastIcon" class="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-base flex-shrink-0">
-        <i class="fa-solid fa-bell"></i>
+  <!-- FILTERS -->
+  <section class="panel filters anim-cascade delay-1" id="sec-filters">
+    <div class="fgroup">
+      <span class="flabel">Dövr</span>
+      <div class="chips" id="presets">
+        <button data-preset="today">Bugün</button>
+        <button data-preset="yesterday">Dünən</button>
+        <button data-preset="week">Son 7 gün</button>
+        <button data-preset="month" class="active">Bu ay</button>
+        <button data-preset="lastmonth">Keçən ay</button>
+        <button data-preset="d30">Son 30 gün</button>
+        <button data-preset="all">Hamısı</button>
       </div>
-      <div class="flex-1 min-w-0">
-        <div id="toastTitle" class="font-bold text-xs">Yeni Əməliyyat</div>
-        <div id="toastMsg" class="text-slate-300 text-[11px] truncate mt-0.5">Satış qeydə alındı.</div>
+    </div>
+    <div class="fgroup">
+      <span class="flabel">Tarix və Saat aralığı</span>
+      <div class="dates">
+        <div class="dt-group">
+          <input type="date" id="from" title="Başlanğıc tarixi">
+          <input type="time" id="fromTime" value="00:00" title="Başlanğıc saatı">
+        </div>
+        <span>—</span>
+        <div class="dt-group">
+          <input type="date" id="to" title="Son tarixi">
+          <input type="time" id="toTime" value="23:59" title="Son saatı">
+        </div>
+      </div>
+    </div>
+    <div class="fgroup">
+      <span class="flabel">Ödəniş növü</span>
+      <div class="chips" id="payTypes">
+        <button data-nov="all" class="active">Hamısı</button>
+        <button data-nov="negd">Nəğd</button>
+        <button data-nov="nisye">Nisyə</button>
+        <button data-nov="qaytarma">Qaytarılma</button>
+        <button data-nov="loss" class="chip-loss" title="Yalnız zərərinə və ya sıfır qazancla vurulmuş satışlar"><i class="fa-solid fa-triangle-exclamation"></i> Kassa İtkisi <span id="chipLossCount" class="chip-count-badge" style="display:none">0</span></button>
+      </div>
+    </div>
+    <div class="fgroup">
+      <span class="flabel">Şərik (Sahib)</span>
+      <div class="chips" id="sahibTypes">
+        <button data-sahib="all" class="active">Hamısı</button>
+        <button data-sahib="Elşən" class="chip-elsen"><i class="fa-solid fa-user-tie"></i> Elşən</button>
+        <button data-sahib="Gülnarə" class="chip-gulnare"><i class="fa-solid fa-user"></i> Gülnarə</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- LOSS ALERT BANNER -->
+  <div id="lossAlertBanner" class="loss-alert-banner" style="display:none">
+    <div class="loss-alert-left">
+      <div class="loss-alert-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
+      <div class="loss-alert-info">
+        <div class="loss-alert-title">
+          <span>Kassa İtkisi Aşkarlanmışdır!</span>
+          <span class="loss-badge-count" id="lossBadgeCount">0 əməliyyat</span>
+        </div>
+        <div class="loss-alert-desc" id="lossAlertDesc">Maya dəyərindən aşağı (zərərinə) və ya sıfır qazancla vurulmuş satışlar aşkarlandı.</div>
+      </div>
+    </div>
+    <div class="loss-alert-right">
+      <div class="loss-stat-box">
+        <span class="loss-stat-lbl">Xalis İtki:</span>
+        <span class="loss-stat-val" id="lossTotalSum">-0.00 ₼</span>
+      </div>
+      <div class="loss-btns-row">
+        <button type="button" class="btn-loss-action" onclick="filterLossSalesOnly()" title="Cədvəldə yalnız bu itkili satışları göstər"><i class="fa-solid fa-filter"></i> <span class="lbl-desk">İtkili Satışları Göstər</span><span class="lbl-mob">Göstər</span></button>
+        <button type="button" class="btn-loss-modal" onclick="openLossModal()" title="Detallı analiz pəncərəsini aç"><i class="fa-solid fa-list-check"></i> <span>Detallı Bax</span></button>
       </div>
     </div>
   </div>
 
-  <!-- ================= MAIN CONTENT ================= -->
-  <main class="max-w-6xl mx-auto px-4 py-5 space-y-5 flex-1 w-full">
-
-    <!-- 1. GƏLİR VƏ MAYA İCMAL KARTLARI (PROFIT & COST HERO) -->
-    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
-      
-      <!-- Xalis Qazanc (Əsas Parlaq Kart) -->
-      <div class="col-span-2 sm:col-span-1 bg-gradient-to-br from-emerald-600 via-teal-600 to-emerald-700 rounded-3xl p-4 sm:p-5 text-white shadow-lg shadow-emerald-600/20 relative overflow-hidden flex flex-col justify-between">
-        <div class="flex items-center justify-between">
-          <span class="text-xs font-bold uppercase tracking-wider text-emerald-100">Xalis Qazanc</span>
-          <div class="w-8 h-8 rounded-xl bg-white/15 backdrop-blur-md flex items-center justify-center text-sm">
-            <i class="fa-solid fa-sack-dollar"></i>
-          </div>
-        </div>
-        <div class="my-2">
-          <div id="statQazanc" class="text-2xl sm:text-3xl font-black mono tracking-tight">0.00 ₼</div>
-          <div class="flex items-center gap-1.5 text-xs text-emerald-100 mt-1 font-semibold">
-            <span id="statMarja" class="px-2 py-0.5 rounded-lg bg-white/20 text-[11px]">0.0% Marja</span>
-            <span>Təmiz Gəlir</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Toplam Dövriyyə (Satış) -->
-      <div class="bg-white dark:bg-slate-900 rounded-3xl p-4 sm:p-5 border border-slate-200/80 dark:border-slate-800 shadow-xs flex flex-col justify-between">
-        <div class="flex items-center justify-between">
-          <span class="text-xs font-bold text-slate-500 dark:text-slate-400">Ümumi Dövriyyə</span>
-          <div class="w-8 h-8 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center text-sm">
-            <i class="fa-solid fa-chart-line"></i>
-          </div>
-        </div>
-        <div class="my-2">
-          <div id="statDovriyye" class="text-xl sm:text-2xl font-black mono text-slate-900 dark:text-white">0.00 ₼</div>
-          <div class="text-[11px] text-indigo-600 dark:text-indigo-400 font-semibold mt-0.5">
-            <span id="statSatisSayı">0</span> əməliyyat
-          </div>
-        </div>
-      </div>
-
-      <!-- Toplam Maya Dəyəri (Alış) -->
-      <div class="bg-white dark:bg-slate-900 rounded-3xl p-4 sm:p-5 border border-slate-200/80 dark:border-slate-800 shadow-xs flex flex-col justify-between">
-        <div class="flex items-center justify-between">
-          <span class="text-xs font-bold text-slate-500 dark:text-slate-400">Toplam Maya (Alış)</span>
-          <div class="w-8 h-8 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 flex items-center justify-center text-sm">
-            <i class="fa-solid fa-boxes-stacked"></i>
-          </div>
-        </div>
-        <div class="my-2">
-          <div id="statMaya" class="text-xl sm:text-2xl font-black mono text-slate-800 dark:text-slate-200">0.00 ₼</div>
-          <div class="text-[11px] text-slate-500 dark:text-slate-400 font-medium mt-0.5">
-            Malların maya xərci
-          </div>
-        </div>
-      </div>
-
-      <!-- Xalis Kassa (Nağd - Qaytarma) -->
-      <div class="col-span-2 sm:col-span-1 bg-gradient-to-br from-indigo-600 via-indigo-700 to-violet-800 rounded-3xl p-4 sm:p-5 text-white shadow-lg shadow-indigo-600/20 relative overflow-hidden flex flex-col justify-between">
-        <div class="flex items-center justify-between">
-          <span class="text-xs font-bold uppercase tracking-wider text-indigo-200">Kassadakı Nağd</span>
-          <div class="w-8 h-8 rounded-xl bg-white/15 backdrop-blur-md flex items-center justify-center text-sm">
-            <i class="fa-solid fa-cash-register"></i>
-          </div>
-        </div>
-        <div class="my-2">
-          <div id="statNetKassa" class="text-2xl sm:text-3xl font-black mono tracking-tight">0.00 ₼</div>
-          <div class="text-xs text-indigo-200 font-semibold mt-1">
-            Nağd kassa balansı
-          </div>
-        </div>
-      </div>
-
+  <!-- STATS -->
+  <section class="stats anim-cascade delay-2" id="sec-kpis">
+    <div class="stat stat-card-total" style="--accent:#22d3ee">
+      <div class="stat-top"><div class="stat-ico"><i class="fa-solid fa-wallet"></i></div><span class="stat-label">Ümumi Dövriyyə</span></div>
+      <div class="stat-value" id="stTotal">0.00 ₼</div>
+      <div class="stat-sub"><span id="stCount">0 əməliyyat</span></div>
+      <div class="stat-spark" id="sparkTotal"></div>
     </div>
-
-    <!-- 2. ALT DETALLAR KARTLARI (Nağd, Nisyə, Qaytarma, Sahib Bölgüsü) -->
-    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
-      
-      <!-- Nağd Satış -->
-      <div class="bg-white dark:bg-slate-900 p-3.5 rounded-2xl border border-slate-200/80 dark:border-slate-800 flex items-center justify-between">
-        <div>
-          <div class="text-[11px] font-semibold text-slate-400">Nağd Satış</div>
-          <div id="statNeqd" class="text-base font-black mono text-emerald-600 dark:text-emerald-400 mt-0.5">0.00 ₼</div>
-        </div>
-        <div class="w-7 h-7 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 flex items-center justify-center text-xs">
-          <i class="fa-solid fa-money-bill-wave"></i>
-        </div>
-      </div>
-
-      <!-- Nisyə Satış -->
-      <div class="bg-white dark:bg-slate-900 p-3.5 rounded-2xl border border-slate-200/80 dark:border-slate-800 flex items-center justify-between">
-        <div>
-          <div class="text-[11px] font-semibold text-slate-400">Nisyə (Borc)</div>
-          <div id="statNisye" class="text-base font-black mono text-amber-600 dark:text-amber-400 mt-0.5">0.00 ₼</div>
-        </div>
-        <div class="w-7 h-7 rounded-lg bg-amber-50 dark:bg-amber-950/60 text-amber-600 flex items-center justify-center text-xs">
-          <i class="fa-solid fa-handshake"></i>
-        </div>
-      </div>
-
-      <!-- Qaytarılmalar -->
-      <div class="bg-white dark:bg-slate-900 p-3.5 rounded-2xl border border-slate-200/80 dark:border-slate-800 flex items-center justify-between">
-        <div>
-          <div class="text-[11px] font-semibold text-slate-400">Qaytarılan Mal</div>
-          <div id="statQaytarma" class="text-base font-black mono text-rose-600 dark:text-rose-400 mt-0.5">0.00 ₼</div>
-        </div>
-        <div class="w-7 h-7 rounded-lg bg-rose-50 dark:bg-rose-950/60 text-rose-600 flex items-center justify-center text-xs">
-          <i class="fa-solid fa-rotate-left"></i>
-        </div>
-      </div>
-
-      <!-- Orta Qəbz (Average Ticket) -->
-      <div class="bg-white dark:bg-slate-900 p-3.5 rounded-2xl border border-slate-200/80 dark:border-slate-800 flex items-center justify-between">
-        <div>
-          <div class="text-[11px] font-semibold text-slate-400">Orta Qəbz Məbləği</div>
-          <div id="statOrtaQebz" class="text-base font-black mono text-indigo-600 dark:text-indigo-400 mt-0.5">0.00 ₼</div>
-        </div>
-        <div class="w-7 h-7 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 flex items-center justify-center text-xs">
-          <i class="fa-solid fa-receipt"></i>
-        </div>
-      </div>
-
+    <div class="stat stat-card-maya" style="--accent:#fbbf24">
+      <div class="stat-top"><div class="stat-ico"><i class="fa-solid fa-boxes-stacked"></i></div><span class="stat-label">Maya Dəyəri</span></div>
+      <div class="stat-value" id="stMaya">0.00 ₼</div>
+      <div class="stat-sub"><span class="pill info" id="stMayaPct">0%</span> satışdan</div>
     </div>
+    <div class="stat stat-card-qazanc" style="--accent:#34d399">
+      <div class="stat-top"><div class="stat-ico"><i class="fa-solid fa-sack-dollar"></i></div><span class="stat-label">Xalis Qazanc</span></div>
+      <div class="stat-value accent" id="stQazanc">0.00 ₼</div>
+      <div class="stat-sub"><span class="pill up" id="stMarja">0% marja</span></div>
+      <div class="stat-spark" id="sparkQazanc"></div>
+    </div>
+    <div class="stat stat-card-negd" style="--accent:#67e8f9">
+      <div class="stat-top"><div class="stat-ico"><i class="fa-solid fa-money-bill-wave"></i></div><span class="stat-label">Nəğd Satış</span></div>
+      <div class="stat-value" id="stNegd">0.00 ₼</div>
+      <div class="stat-sub"><span class="pill info" id="stNegdPct">0%</span> pay</div>
+    </div>
+    <div class="stat stat-card-nisye" style="--accent:#a855f7">
+      <div class="stat-top"><div class="stat-ico"><i class="fa-solid fa-file-invoice-dollar"></i></div><span class="stat-label">Nisyə Satış</span></div>
+      <div class="stat-value" id="stNisye">0.00 ₼</div>
+      <div class="stat-sub"><span class="pill dn" id="stBorc">0.00 ₼ borc</span></div>
+    </div>
+    <div class="stat stat-card-qty" style="--accent:#f472b6" title="Ümumi Miqdar (Ədəd) və Çəki (Kq)">
+      <div class="stat-top"><div class="stat-ico"><i class="fa-solid fa-scale-balanced"></i></div><span class="stat-label">Miqdar / Kq</span></div>
+      <div class="stat-value stat-value-qty" id="stQtyKgBox">
+        <span class="qty-num"><span id="stEdedVal">0</span><span class="qty-unit"> əd</span></span>
+        <span class="qty-sep">/</span>
+        <span class="kg-num"><span id="stKiloVal">0</span><span class="qty-unit"> kq</span></span>
+      </div>
+      <div class="stat-sub">
+        <span class="pill info" id="stEdedSub">0 ədəd</span>
+        <span class="pill" id="stKiloSub" style="background:rgba(244,114,182,.14);color:#f472b6">0 kq</span>
+      </div>
+    </div>
+  </section>
 
-    <!-- 3. SAHİB BÖLGÜSÜ BANNERİ (Elşən vs Gülnarə) -->
-    <div class="grid grid-cols-2 gap-3">
-      <!-- Elşən -->
-      <div class="bg-gradient-to-r from-indigo-50 to-white dark:from-indigo-950/40 dark:to-slate-900 p-3.5 rounded-2xl border border-indigo-100 dark:border-indigo-900/60 flex items-center justify-between">
-        <div class="flex items-center gap-2.5">
-          <div class="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-black text-xs shadow-xs">
-            E
+  <!-- ŞƏRİK BÖLGÜSÜ (ELŞƏN vs GÜLNARƏ) -->
+  <section class="serik-grid anim-cascade delay-3" id="sec-serik">
+    <div class="serik-card elsen" id="cardSerikElsen" onclick="toggleSahibFilter('Elşən')" title="Yalnız Elşənin satışlarını filtrləmək üçün klikləyin">
+      <div class="serik-left">
+        <div class="serik-avatar">E</div>
+        <div class="serik-info">
+          <div class="serik-name">Elşən <span class="serik-role">Şərik 1</span></div>
+          <div class="serik-profit" id="stElsenQazanc">Qazanc: +0.00 ₼</div>
+          <div class="serik-sub">
+            <span id="stElsenMaya">Maya: 0.00 ₼</span>
+            <span>•</span>
+            <span id="stElsenCount">0 satış (0%)</span>
           </div>
-          <div>
-            <div class="text-[11px] font-bold text-slate-600 dark:text-slate-400">Elşən</div>
-            <div id="statElsenQazanc" class="text-xs font-extrabold text-indigo-700 dark:text-indigo-300 mono">Qazanc: 0.00 ₼</div>
-          </div>
-        </div>
-        <div class="text-right">
-          <div id="statElsenSatish" class="text-xs font-black mono text-slate-900 dark:text-white">0.00 ₼</div>
-          <div class="text-[10px] text-slate-400">Satış</div>
         </div>
       </div>
-
-      <!-- Gülnarə -->
-      <div class="bg-gradient-to-r from-pink-50 to-white dark:from-pink-950/40 dark:to-slate-900 p-3.5 rounded-2xl border border-pink-100 dark:border-pink-900/60 flex items-center justify-between">
-        <div class="flex items-center gap-2.5">
-          <div class="w-8 h-8 rounded-xl bg-pink-600 text-white flex items-center justify-center font-black text-xs shadow-xs">
-            G
-          </div>
-          <div>
-            <div class="text-[11px] font-bold text-slate-600 dark:text-slate-400">Gülnarə</div>
-            <div id="statGulnareQazanc" class="text-xs font-extrabold text-pink-700 dark:text-pink-300 mono">Qazanc: 0.00 ₼</div>
-          </div>
-        </div>
-        <div class="text-right">
-          <div id="statGulnareSatish" class="text-xs font-black mono text-slate-900 dark:text-white">0.00 ₼</div>
-          <div class="text-[10px] text-slate-400">Satış</div>
-        </div>
+      <div class="serik-right">
+        <div class="serik-sales" id="stElsenSatis">0.00 ₼</div>
+        <div class="serik-sales-lbl">Elşən Satış</div>
       </div>
     </div>
 
-    <!-- 4. QRAFİKLƏR BÖLMƏSİ (İki Tab: Top Məhsullar & Saatlıq Aktivlik) -->
-    <div class="bg-white dark:bg-slate-900 rounded-3xl p-4 sm:p-5 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-3">
-      <div class="flex items-center justify-between flex-wrap gap-2">
-        <div class="flex items-center gap-2">
-          <button onclick="switchChartTab('products')" id="chartTabProducts" class="px-3 py-1.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/70 text-indigo-700 dark:text-indigo-300 font-bold text-xs transition">
-            <i class="fa-solid fa-trophy mr-1"></i> Top Məhsullar
-          </button>
-          <button onclick="switchChartTab('hourly')" id="chartTabHourly" class="px-3 py-1.5 rounded-xl text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 font-semibold text-xs transition">
-            <i class="fa-solid fa-clock mr-1"></i> Saatlıq Aktivlik
-          </button>
-        </div>
-        <span id="chartLabel" class="text-xs text-slate-400 font-medium">Filtrə uyğun</span>
-      </div>
-
-      <div class="h-60 relative w-full">
-        <canvas id="mainChart"></canvas>
-      </div>
-    </div>
-
-    <!-- 5. FİLTRLƏR VƏ AXTARIŞ BLOKU -->
-    <div class="bg-white dark:bg-slate-900 rounded-3xl p-4 sm:p-5 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-3.5">
-      
-      <!-- Sürətli Tarix Seçimləri (Pill-lər) -->
-      <div class="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none text-xs font-bold">
-        <button onclick="setDatePreset('today')" id="preset_today" class="px-3.5 py-2 rounded-2xl bg-brand-600 text-white transition whitespace-nowrap shadow-xs">Bugün</button>
-        <button onclick="setDatePreset('yesterday')" id="preset_yesterday" class="px-3.5 py-2 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 transition whitespace-nowrap">Dünən</button>
-        <button onclick="setDatePreset('this_week')" id="preset_this_week" class="px-3.5 py-2 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 transition whitespace-nowrap">Bu Həftə</button>
-        <button onclick="setDatePreset('this_month')" id="preset_this_month" class="px-3.5 py-2 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 transition whitespace-nowrap">Bu Ay</button>
-        <button onclick="setDatePreset('all')" id="preset_all" class="px-3.5 py-2 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 transition whitespace-nowrap">Hamısı</button>
-      </div>
-
-      <!-- Fərdi Tarix Aralığı & Süzgəclər -->
-      <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-xs">
-        <div>
-          <label class="block text-[11px] font-semibold text-slate-400 mb-1">Başlanğıc</label>
-          <input type="date" id="filterStartDate" onchange="onCustomDateChange()" class="w-full bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl px-2.5 py-2 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-500">
-        </div>
-        <div>
-          <label class="block text-[11px] font-semibold text-slate-400 mb-1">Bitiş</label>
-          <input type="date" id="filterEndDate" onchange="onCustomDateChange()" class="w-full bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl px-2.5 py-2 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-500">
-        </div>
-        <div>
-          <label class="block text-[11px] font-semibold text-slate-400 mb-1">Sahib</label>
-          <select id="filterSahib" onchange="applyFilters()" class="w-full bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl px-2.5 py-2 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-500">
-            <option value="ALL">Bütün Sahibləri</option>
-            <option value="Elşən">Elşən</option>
-            <option value="Gülnarə">Gülnarə</option>
-          </select>
-        </div>
-        <div>
-          <label class="block text-[11px] font-semibold text-slate-400 mb-1">Əməliyyat</label>
-          <select id="filterType" onchange="applyFilters()" class="w-full bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl px-2.5 py-2 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-500">
-            <option value="ALL">Bütün Əməliyyatlar</option>
-            <option value="Nağd">Yalnız Nağd</option>
-            <option value="Nisyə">Yalnız Nisyə</option>
-            <option value="QAYTARILMA">Qaytarılmalar</option>
-          </select>
-        </div>
-      </div>
-
-      <!-- Axtarış Inputu -->
-      <div class="relative">
-        <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
-        <input type="text" id="filterSearch" oninput="applyFilters()" placeholder="Məhsul, müştəri və ya qəbz nömrəsi ilə anlıq axtarış..." class="w-full bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-2xl pl-9 pr-4 py-2.5 text-xs text-slate-800 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500 transition">
-      </div>
-    </div>
-
-    <!-- 6. ƏMƏLİYYATLAR SİYAHISI BAŞLIĞI VƏ EXCEL DÜYMƏSİ -->
-    <div class="flex items-center justify-between gap-3 pt-2">
-      <div>
-        <h3 class="text-sm font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
-          <span>Satışlar və Qaytarmalar</span>
-          <span id="recordCountBadge" class="px-2 py-0.5 rounded-full text-[11px] font-bold bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300">0</span>
-        </h3>
-        <p class="text-[11px] text-slate-400">Detallı baxmaq üçün qəbzin üzərinə toxunun</p>
-      </div>
-
-      <!-- Excel Export Button -->
-      <button onclick="exportToExcel()" class="inline-flex items-center gap-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white px-4 py-2 rounded-2xl text-xs font-bold shadow-md shadow-emerald-600/20 transition active:scale-95">
-        <i class="fa-solid fa-file-excel text-sm"></i>
-        <span>Excel (.xlsx)</span>
-      </button>
-    </div>
-
-    <!-- 7. ƏMƏLİYYAT KARTLARI FEED-İ -->
-    <div id="transactionsList" class="space-y-2.5">
-      <!-- JavaScript ilə render olunacaq -->
-    </div>
-
-    <!-- Boş vəziyyət -->
-    <div id="emptyState" class="hidden bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 p-10 text-center">
-      <div class="w-14 h-14 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-400 flex items-center justify-center mx-auto mb-3 text-2xl">
-        <i class="fa-regular fa-folder-open"></i>
-      </div>
-      <div class="text-sm font-bold text-slate-700 dark:text-slate-300">Heç bir əməliyyat tapılmadı</div>
-      <div class="text-xs text-slate-400 mt-1">Seçilmiş kriteriyalara uyğun məlumat yoxdur.</div>
-    </div>
-
-  </main>
-
-  <!-- ================= QƏBZ DETALI MODALI (RECEIPT MODAL) ================= -->
-  <div id="receiptModal" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm hidden items-center justify-center p-4">
-    <div class="bg-white dark:bg-slate-900 rounded-3xl max-w-sm w-full p-6 shadow-2xl space-y-4 border border-slate-200 dark:border-slate-800 relative">
-      <button onclick="closeReceiptModal()" class="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-slate-800 flex items-center justify-center text-sm">
-        <i class="fa-solid fa-xmark"></i>
-      </button>
-
-      <div class="text-center border-b border-dashed border-slate-200 dark:border-slate-700 pb-4">
-        <div class="w-12 h-12 rounded-2xl bg-brand-50 dark:bg-brand-950 text-brand-600 dark:text-brand-400 flex items-center justify-center mx-auto mb-2 text-xl">
-          <i class="fa-solid fa-receipt"></i>
-        </div>
-        <h4 class="text-base font-extrabold text-slate-900 dark:text-white">Papatya Mağazası</h4>
-        <div id="rcpTarix" class="text-xs text-slate-400 mt-0.5">18.09.2026 14:20</div>
-        <div id="rcpId" class="text-[11px] mono text-slate-400">Qəbz ID: #...</div>
-      </div>
-
-      <div class="space-y-2.5 text-xs">
-        <div class="flex justify-between items-center py-1">
-          <span class="text-slate-500 dark:text-slate-400">Məhsul</span>
-          <span id="rcpMehsul" class="font-bold text-slate-800 dark:text-slate-200 text-right">...</span>
-        </div>
-        <div class="flex justify-between items-center py-1">
-          <span class="text-slate-500 dark:text-slate-400">Miqdar / Say</span>
-          <span id="rcpSay" class="font-bold mono text-slate-800 dark:text-slate-200">1</span>
-        </div>
-        <div class="flex justify-between items-center py-1">
-          <span class="text-slate-500 dark:text-slate-400">Ödəniş Növü</span>
-          <span id="rcpOdenis" class="font-bold">Nağd</span>
-        </div>
-        <div id="rcpMusteriRow" class="flex justify-between items-center py-1 hidden">
-          <span class="text-slate-500 dark:text-slate-400">Müştəri</span>
-          <span id="rcpMusteri" class="font-bold text-amber-600">...</span>
-        </div>
-        <div class="flex justify-between items-center py-1">
-          <span class="text-slate-500 dark:text-slate-400">Sahib</span>
-          <span id="rcpSahib" class="font-bold">...</span>
-        </div>
-
-        <div class="border-t border-dashed border-slate-200 dark:border-slate-700 pt-3 space-y-1.5">
-          <div class="flex justify-between items-center">
-            <span class="text-slate-500 dark:text-slate-400">Maya Dəyəri:</span>
-            <span id="rcpMaya" class="font-bold mono text-slate-600 dark:text-slate-400">0.00 ₼</span>
-          </div>
-          <div class="flex justify-between items-center">
-            <span class="text-slate-500 dark:text-slate-400">Xalis Qazanc:</span>
-            <span id="rcpQazanc" class="font-bold mono text-emerald-600 dark:text-emerald-400">+0.00 ₼</span>
-          </div>
-          <div class="flex justify-between items-center text-sm pt-2 border-t border-slate-100 dark:border-slate-800">
-            <span class="font-bold text-slate-900 dark:text-white">Toplam Satış:</span>
-            <span id="rcpMebleg" class="font-black mono text-base text-slate-900 dark:text-white">0.00 ₼</span>
+    <div class="serik-card gulnare" id="cardSerikGulnare" onclick="toggleSahibFilter('Gülnarə')" title="Yalnız Gülnarənin satışlarını filtrləmək üçün klikləyin">
+      <div class="serik-left">
+        <div class="serik-avatar">G</div>
+        <div class="serik-info">
+          <div class="serik-name">Gülnarə <span class="serik-role">Şərik 2</span></div>
+          <div class="serik-profit" id="stGulnareQazanc">Qazanc: +0.00 ₼</div>
+          <div class="serik-sub">
+            <span id="stGulnareMaya">Maya: 0.00 ₼</span>
+            <span>•</span>
+            <span id="stGulnareCount">0 satış (0%)</span>
           </div>
         </div>
       </div>
-
-      <button onclick="closeReceiptModal()" class="w-full py-2.5 rounded-2xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-xs font-bold text-slate-700 dark:text-slate-300 transition">
-        Bağla
-      </button>
+      <div class="serik-right">
+        <div class="serik-sales" id="stGulnareSatis">0.00 ₼</div>
+        <div class="serik-sales-lbl">Gülnarə Satış</div>
+      </div>
     </div>
-  </div>
+  </section>
 
-  <!-- ================= TƏNZİMLƏMƏLƏR MODALI ================= -->
-  <div id="settingsModal" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm hidden items-center justify-center p-4">
-    <div class="bg-white dark:bg-slate-900 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4 border border-slate-200 dark:border-slate-800">
-      <div class="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
-        <div class="flex items-center gap-2.5">
-          <div class="w-8 h-8 rounded-xl bg-indigo-50 dark:bg-indigo-950/70 text-indigo-600 flex items-center justify-center text-sm">
-            <i class="fa-solid fa-sliders"></i>
+  <!-- CHARTS -->
+  <section class="charts anim-cascade delay-4" id="sec-charts">
+    <div class="panel slider-panel" id="mainChartSliderPanel">
+      <div class="card-head">
+        <div>
+          <div class="card-title" id="mainSliderTitle"><span class="bar"></span> <span id="mainSliderTitleText">Günlük Satış Dinamikası</span></div>
+          <div class="card-sub" style="margin-top:5px;margin-left:13px" id="mainSliderSubtitle">Səhifə 1 / 2 • Nəğd və nisyə satışların müqayisəsi</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px">
+          <div class="legend" id="mainChartLegend" style="padding:0">
+            <div class="lg"><span class="sw negd"></span> Nəğd</div>
+            <div class="lg"><span class="sw nisye"></span> Nisyə</div>
           </div>
-          <h3 class="text-base font-bold text-slate-900 dark:text-white">Sistem Ayarları</h3>
-        </div>
-        <button onclick="closeSettingsModal()" class="text-slate-400 hover:text-slate-600 text-lg">
-          <i class="fa-solid fa-xmark"></i>
-        </button>
-      </div>
-
-      <div class="space-y-3 text-xs">
-        <div>
-          <label class="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Supabase Project URL</label>
-          <input type="text" id="cfgSupabaseUrl" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-slate-800 dark:text-slate-100 font-mono text-[11px] focus:outline-none focus:ring-2 focus:ring-brand-500">
-        </div>
-
-        <div>
-          <label class="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Supabase Anon Key</label>
-          <textarea id="cfgSupabaseKey" rows="3" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-slate-800 dark:text-slate-100 font-mono text-[10px] focus:outline-none focus:ring-2 focus:ring-brand-500"></textarea>
+          <div class="slider-nav">
+            <button type="button" class="slider-arrow" id="mainSlidePrev" onclick="goToMainSlide(0)" title="Əvvəlki səhifə"><i class="fa-solid fa-chevron-left"></i></button>
+            <button type="button" class="slider-arrow" id="mainSlideNext" onclick="goToMainSlide(1)" title="Növbəti səhifə"><i class="fa-solid fa-chevron-right"></i></button>
+          </div>
         </div>
       </div>
-
-      <div class="flex items-center justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
-        <button onclick="closeSettingsModal()" class="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition">İmtina</button>
-        <button onclick="saveSupabaseSettings()" class="px-5 py-2 rounded-xl text-xs font-bold bg-brand-600 hover:bg-brand-700 text-white shadow-xs transition">Yadda Saxla</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- ================= JAVASCRIPT ================= -->
-  <script>
-    // Giriş Şifrəsi
-    const APP_PASSWORD = "Gubus0123456789-";
-
-    // Standart Supabase açarlarınız
-    const DEFAULT_SUPABASE_URL = "https://rwsdahmgallpyzonucpb.supabase.co";
-    const DEFAULT_SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ3c2RhaG1nYWxscHl6b251Y3BiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk3MDQzMzYsImV4cCI6MjEwNTI4MDMzNn0.jczh4ZJr0-JeBijwmXXXydqycj6YXDARCuxkiyAWKDM";
-
-    let supabaseClient = null;
-    let allRecords = [];
-    let filteredRecords = [];
-    let mainChart = null;
-    let activeChartTab = 'products'; // 'products' və ya 'hourly'
-    let audioEnabled = true;
-
-    // Səhifə yüklənəndə
-    document.addEventListener('DOMContentLoaded', () => {
-      checkAuthOnLoad();
-      initTheme();
-      initDatePresetToday();
-      initSupabase();
-      initChart();
-    });
-
-    // 0. Giriş Parolu Təhlükəsizliyi
-    function checkAuthOnLoad() {
-      const savedPass = localStorage.getItem('papatya_pos_auth');
-      if (savedPass === APP_PASSWORD) {
-        document.getElementById('lockScreen').classList.add('hidden');
-      } else {
-        document.getElementById('lockScreen').classList.remove('hidden');
-        setTimeout(() => {
-          document.getElementById('passInput')?.focus();
-        }, 150);
-      }
-    }
-
-    function checkPassword(e) {
-      e.preventDefault();
-      const val = document.getElementById('passInput').value;
-      if (val === APP_PASSWORD) {
-        localStorage.setItem('papatya_pos_auth', val);
-        document.getElementById('lockScreen').classList.add('hidden');
-        playCashSound();
-        showToast("Xoş Gəldiniz!", "Giriş uğurla təsdiqləndi.", "emerald");
-      } else {
-        const err = document.getElementById('passError');
-        err.classList.remove('hidden');
-        document.getElementById('passInput').value = '';
-        document.getElementById('passInput').focus();
-      }
-    }
-
-    function logout() {
-      if (confirm("Sistemdən çıxış edib səhifəni kilidləmək istəyirsiniz?")) {
-        localStorage.removeItem('papatya_pos_auth');
-        document.getElementById('lockScreen').classList.remove('hidden');
-        document.getElementById('passInput').value = '';
-        document.getElementById('passError').classList.add('hidden');
-        document.getElementById('passInput').focus();
-        showToast("Kilidləndi", "Sistemdən çıxış edildi.", "amber");
-      }
-    }
-
-    // 1. Mövzu (Dark / Light Mode)
-    function initTheme() {
-      const isDark = localStorage.getItem('pos_dark_mode') === 'true' || 
-        (!('pos_dark_mode' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches);
-      setDarkMode(isDark);
-    }
-
-    function toggleDarkMode() {
-      const isDark = !document.documentElement.classList.contains('dark');
-      setDarkMode(isDark);
-    }
-
-    function setDarkMode(isDark) {
-      if (isDark) {
-        document.documentElement.classList.add('dark');
-        document.getElementById('themeIcon').className = "fa-solid fa-sun text-amber-400 text-sm";
-        localStorage.setItem('pos_dark_mode', 'true');
-      } else {
-        document.documentElement.classList.remove('dark');
-        document.getElementById('themeIcon').className = "fa-solid fa-moon text-slate-600 text-sm";
-        localStorage.setItem('pos_dark_mode', 'false');
-      }
-      if (mainChart) updateChart();
-    }
-
-    // 2. Kassa Zəngi Səsi (Web Audio API ilə təbii kassa səsi)
-    function toggleAudio() {
-      audioEnabled = !audioEnabled;
-      const btn = document.getElementById('audioBtn');
-      if (audioEnabled) {
-        btn.innerHTML = '<i class="fa-solid fa-volume-high text-sm text-indigo-600 dark:text-indigo-400"></i>';
-        showToast("Səs Aktiv", "Yeni satışlarda kassa zəngi çalacaq.");
-        playCashSound();
-      } else {
-        btn.innerHTML = '<i class="fa-solid fa-volume-xmark text-sm text-slate-400"></i>';
-        showToast("Səs Bağlandı", "Bildiriş səsi söndürüldü.");
-      }
-    }
-
-    function playCashSound() {
-      if (!audioEnabled) return;
-      try {
-        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        const now = audioCtx.currentTime;
-
-        // İki tonlu zərif kassa ding səsi (E6 və B6 notaları)
-        const osc1 = audioCtx.createOscillator();
-        const gain1 = audioCtx.createGain();
-        osc1.type = 'sine';
-        osc1.frequency.setValueAtTime(1318.51, now); // E6
-        gain1.gain.setValueAtTime(0.3, now);
-        gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
-        osc1.connect(gain1);
-        gain1.connect(audioCtx.destination);
-        osc1.start(now);
-        osc1.stop(now + 0.5);
-
-        const osc2 = audioCtx.createOscillator();
-        const gain2 = audioCtx.createGain();
-        osc2.type = 'triangle';
-        osc2.frequency.setValueAtTime(1975.53, now + 0.08); // B6
-        gain2.gain.setValueAtTime(0.35, now + 0.08);
-        gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.7);
-        osc2.connect(gain2);
-        gain2.connect(audioCtx.destination);
-        osc2.start(now + 0.08);
-        osc2.stop(now + 0.7);
-      } catch (e) {
-        // audio context blocker bypass
-      }
-    }
-
-    // 3. Supabase Bağlantısı
-    function initSupabase() {
-      const savedUrl = localStorage.getItem('supabase_url') || DEFAULT_SUPABASE_URL;
-      const savedKey = localStorage.getItem('supabase_key') || DEFAULT_SUPABASE_KEY;
-
-      document.getElementById('cfgSupabaseUrl').value = savedUrl;
-      document.getElementById('cfgSupabaseKey').value = savedKey;
-
-      if (!savedUrl || !savedKey) {
-        document.getElementById('liveStatus').innerText = "Açar yoxdur";
-        document.getElementById('liveStatus').className = "font-semibold text-amber-600 text-[11px]";
-        document.getElementById('liveDot').className = "w-2 h-2 rounded-full bg-amber-500";
-        openSettingsModal();
-        return;
-      }
-
-      try {
-        supabaseClient = window.supabase.createClient(savedUrl.trim(), savedKey.trim());
-        document.getElementById('liveStatus').innerText = "Realtime Aktiv";
-        document.getElementById('liveStatus').className = "font-semibold text-emerald-600 dark:text-emerald-400 text-[11px]";
-        document.getElementById('liveDot').className = "w-2 h-2 rounded-full bg-emerald-500 pulse-dot";
-
-        loadData();
-        subscribeRealtime();
-      } catch (err) {
-        console.error("Supabase xətası:", err);
-        showToast("Xəta", err.message, "rose");
-      }
-    }
-
-    // 4. Canlı Realtime Dinləmə
-    function subscribeRealtime() {
-      if (!supabaseClient) return;
-
-      supabaseClient
-        .channel('public:satislar_v2')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'satislar' }, (payload) => {
-          if (payload.eventType === 'INSERT') {
-            const newItem = payload.new;
-            allRecords.unshift(newItem);
-            playCashSound();
-            showToast("Yeni Satış!", `${newItem.mehsul_adi} • +${parseFloat(newItem.mebleg).toFixed(2)} ₼`, "emerald");
-          } else if (payload.eventType === 'DELETE') {
-            const oldId = payload.old.id;
-            allRecords = allRecords.filter(r => r.id !== oldId);
-            showToast("Silindi", "Satış qeydi silindi.", "amber");
-          } else if (payload.eventType === 'UPDATE') {
-            const updated = payload.new;
-            const idx = allRecords.findIndex(r => r.id === updated.id);
-            if (idx !== -1) allRecords[idx] = updated;
-          }
-          applyFilters();
-        })
-        .subscribe();
-    }
-
-    // 5. Məlumatları Yükləmə
-    async function loadData(manual = false) {
-      if (!supabaseClient) return;
-
-      try {
-        const { data, error } = await supabaseClient
-          .from('satislar')
-          .select('*')
-          .order('tarix', { ascending: false })
-          .limit(2000);
-
-        if (error) throw error;
-        allRecords = data || [];
-        applyFilters();
-
-        if (manual) {
-          showToast("Yeniləndi", "Məlumatlar bazadan yeniləndi.", "emerald");
-        }
-      } catch (err) {
-        console.error("Yükləmə xətası:", err);
-        showToast("Xəta", err.message, "rose");
-      }
-    }
-
-    // 6. Filtrlər
-    function applyFilters() {
-      const search = document.getElementById('filterSearch').value.toLowerCase().trim();
-      const sahib = document.getElementById('filterSahib').value;
-      const type = document.getElementById('filterType').value;
-      const startDateStr = document.getElementById('filterStartDate').value;
-      const endDateStr = document.getElementById('filterEndDate').value;
-
-      let start = startDateStr ? new Date(startDateStr + 'T00:00:00') : null;
-      let end = endDateStr ? new Date(endDateStr + 'T23:59:59.999') : null;
-
-      filteredRecords = allRecords.filter(item => {
-        const itemDate = new Date(item.tarix);
-
-        if (start && itemDate < start) return false;
-        if (end && itemDate > end) return false;
-
-        if (sahib !== 'ALL') {
-          if ((item.sahib_adi || '').toLowerCase() !== sahib.toLowerCase()) {
-            return false;
-          }
-        }
-
-        if (type !== 'ALL') {
-          if (type === 'QAYTARILMA') {
-            if (item.emeliyyat_tipi !== 'QAYTARILMA') return false;
-          } else {
-            if (item.emeliyyat_tipi === 'QAYTARILMA') return false;
-            if (item.odenis_novu !== type) return false;
-          }
-        }
-
-        if (search) {
-          const mAd = (item.mehsul_adi || '').toLowerCase();
-          const musteri = (item.musteri_adi || '').toLowerCase();
-          const qebz = (item.yerli_satis_id || '').toLowerCase();
-          if (!mAd.includes(search) && !musteri.includes(search) && !qebz.includes(search)) {
-            return false;
-          }
-        }
-
-        return true;
-      });
-
-      updateStats();
-      renderTransactions();
-      updateChart();
-    }
-
-    // 7. Statistika və Qazanc Hesablamaları
-    function updateStats() {
-      let totalDovriyye = 0;
-      let totalMaya = 0;
-      let totalQazanc = 0;
-      let totalNeqd = 0;
-      let totalNisye = 0;
-      let totalQaytarma = 0;
-      let satisCount = 0;
-
-      // Sahib statistikası
-      let elsenSatish = 0, elsenQazanc = 0;
-      let gulnareSatish = 0, gulnareQazanc = 0;
-
-      filteredRecords.forEach(item => {
-        const mebleg = parseFloat(item.mebleg) || 0;
-        const maya = parseFloat(item.alis_qiymeti) || 0;
-        
-        // Əgər bazada qazanc sütunu varsa onu götür, yoxdursa hesabla
-        let qazanc = 0;
-        if (item.qazanc !== undefined && item.qazanc !== null) {
-          qazanc = parseFloat(item.qazanc);
-        } else {
-          qazanc = mebleg - maya;
-        }
-
-        const isReturn = item.emeliyyat_tipi === 'QAYTARILMA';
-
-        if (isReturn) {
-          totalQaytarma += Math.abs(mebleg);
-          totalQazanc += qazanc; // Qaytarılanda qazanc mənfidir
-        } else {
-          satisCount++;
-          totalDovriyye += mebleg;
-          totalMaya += maya;
-          totalQazanc += qazanc;
-
-          if (item.odenis_novu === 'Nisyə') {
-            totalNisye += mebleg;
-          } else {
-            totalNeqd += mebleg;
-          }
-
-          // Sahib bölgüsü
-          if (item.sahib_adi === 'Elşən') {
-            elsenSatish += mebleg;
-            elsenQazanc += qazanc;
-          } else if (item.sahib_adi === 'Gülnarə') {
-            gulnareSatish += mebleg;
-            gulnareQazanc += qazanc;
-          }
-        }
-      });
-
-      const netKassa = totalNeqd - totalQaytarma;
-      const marjaFaizi = totalDovriyye > 0 ? ((totalQazanc / totalDovriyye) * 100) : 0;
-      const ortaQebz = satisCount > 0 ? (totalDovriyye / satisCount) : 0;
-
-      // DOM Yeniləmələri
-      document.getElementById('statQazanc').innerText = totalQazanc.toFixed(2) + ' ₼';
-      document.getElementById('statMarja').innerText = marjaFaizi.toFixed(1) + '% Marja';
-      document.getElementById('statDovriyye').innerText = totalDovriyye.toFixed(2) + ' ₼';
-      document.getElementById('statSatisSayı').innerText = satisCount;
-      document.getElementById('statMaya').innerText = totalMaya.toFixed(2) + ' ₼';
-      document.getElementById('statNetKassa').innerText = netKassa.toFixed(2) + ' ₼';
-
-      document.getElementById('statNeqd').innerText = totalNeqd.toFixed(2) + ' ₼';
-      document.getElementById('statNisye').innerText = totalNisye.toFixed(2) + ' ₼';
-      document.getElementById('statQaytarma').innerText = totalQaytarma.toFixed(2) + ' ₼';
-      document.getElementById('statOrtaQebz').innerText = ortaQebz.toFixed(2) + ' ₼';
-
-      document.getElementById('statElsenSatish').innerText = elsenSatish.toFixed(2) + ' ₼';
-      document.getElementById('statElsenQazanc').innerText = 'Qazanc: ' + elsenQazanc.toFixed(2) + ' ₼';
-      document.getElementById('statGulnareSatish').innerText = gulnareSatish.toFixed(2) + ' ₼';
-      document.getElementById('statGulnareQazanc').innerText = 'Qazanc: ' + gulnareQazanc.toFixed(2) + ' ₼';
-
-      document.getElementById('recordCountBadge').innerText = filteredRecords.length;
-    }
-
-    // 8. Əməliyyat Siyahısı (Kartlar)
-    function renderTransactions() {
-      const container = document.getElementById('transactionsList');
-      const emptyState = document.getElementById('emptyState');
-
-      if (filteredRecords.length === 0) {
-        container.innerHTML = '';
-        emptyState.classList.remove('hidden');
-        return;
-      }
-
-      emptyState.classList.add('hidden');
-
-      const html = filteredRecords.map((item, index) => {
-        const isReturn = item.emeliyyat_tipi === 'QAYTARILMA';
-        const isCredit = item.odenis_novu === 'Nisyə' && !isReturn;
-        const mebleg = parseFloat(item.mebleg) || 0;
-        const maya = parseFloat(item.alis_qiymeti) || 0;
-        const qazanc = (item.qazanc !== undefined && item.qazanc !== null) ? parseFloat(item.qazanc) : (mebleg - maya);
-        const qty = parseFloat(item.say) || 1;
-
-        const dateObj = new Date(item.tarix);
-        const timeStr = dateObj.toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' });
-        const dateStr = dateObj.toLocaleDateString('az-AZ', { day: '2-digit', month: '2-digit' });
-
-        // Badge
-        let typeBadge = '';
-        if (isReturn) {
-          typeBadge = `<span class="px-2 py-0.5 rounded-lg text-[10px] font-extrabold bg-rose-50 text-rose-600 dark:bg-rose-950/60 dark:text-rose-400 border border-rose-200 dark:border-rose-800">Qaytarılma</span>`;
-        } else if (isCredit) {
-          typeBadge = `<span class="px-2 py-0.5 rounded-lg text-[10px] font-extrabold bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200 dark:border-amber-800">Nisyə</span>`;
-        } else {
-          typeBadge = `<span class="px-2 py-0.5 rounded-lg text-[10px] font-extrabold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">Nağd</span>`;
-        }
-
-        // Sahib Badge
-        let sahibBadge = '';
-        if (item.sahib_adi === 'Elşən') {
-          sahibBadge = `<span class="px-2 py-0.5 rounded-lg text-[10px] font-bold bg-indigo-50 text-indigo-700 dark:bg-indigo-950/70 dark:text-indigo-300">Elşən</span>`;
-        } else if (item.sahib_adi === 'Gülnarə') {
-          sahibBadge = `<span class="px-2 py-0.5 rounded-lg text-[10px] font-bold bg-pink-50 text-pink-700 dark:bg-pink-950/70 dark:text-pink-300">Gülnarə</span>`;
-        }
-
-        // Qazanc rəngi
-        const qazancClass = qazanc >= 0 ? 'text-emerald-600 dark:text-emerald-400 font-bold' : 'text-rose-600 dark:text-rose-400 font-bold';
-        const qazancSign = qazanc >= 0 ? '+' : '';
-
-        return `
-          <div onclick="openReceiptModal(${index})" class="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs hover:border-indigo-400 dark:hover:border-indigo-600 transition active:scale-[0.99] cursor-pointer">
-            <div class="flex items-start justify-between gap-3">
-              <div class="space-y-1.5 flex-1 min-w-0">
-                <div class="flex items-center gap-1.5 flex-wrap">
-                  <span class="font-extrabold text-sm text-slate-900 dark:text-white truncate">${escapeHtml(item.mehsul_adi)}</span>
-                  ${typeBadge}
-                  ${sahibBadge}
-                </div>
-
-                <div class="flex items-center gap-2 text-xs text-slate-400 flex-wrap">
-                  <span><i class="fa-regular fa-clock mr-1 text-[10px]"></i>${timeStr} • ${dateStr}</span>
-                  <span>•</span>
-                  <span class="font-semibold text-slate-700 dark:text-slate-300">${qty} ədəd</span>
-                </div>
-
-                <!-- Maya və Qazanc Sətri -->
-                <div class="flex items-center gap-3 text-[11px] pt-1">
-                  <div class="text-slate-500 dark:text-slate-400">
-                    Maya: <span class="mono font-semibold text-slate-700 dark:text-slate-300">${maya.toFixed(2)} ₼</span>
-                  </div>
-                  <div class="${qazancClass} flex items-center gap-1">
-                    <span>Qazanc:</span>
-                    <span class="mono">${qazancSign}${qazanc.toFixed(2)} ₼</span>
-                  </div>
-                </div>
-
-                ${item.musteri_adi ? `
-                  <div class="text-xs text-amber-700 dark:text-amber-400 font-bold flex items-center gap-1.5 pt-0.5">
-                    <i class="fa-solid fa-user text-[10px]"></i> Müştəri: ${escapeHtml(item.musteri_adi)}
-                  </div>
-                ` : ''}
+      <div class="slider-viewport" id="mainSliderViewport">
+        <div class="slider-track" id="mainSliderTrack">
+          <div class="slider-slide" id="mainSlide1">
+            <div class="chart-area" style="padding:10px 18px 2px;height:100%;display:flex;flex-direction:column;flex:1">
+              <div class="chart" id="chart"></div>
+            </div>
+          </div>
+          <div class="slider-slide" id="mainSlide2">
+            <div class="main-mode-selector">
+              <button type="button" class="mode-pill active" id="btnModeHourly" data-mode="hourly" onclick="setMainChartMode('hourly')"><i class="fa-solid fa-clock"></i> <span class="lbl-desk">Saatlıq Pik</span><span class="lbl-mob">Saat/Pik</span></button>
+              <button type="button" class="mode-pill" id="btnModeProfit" data-mode="profit" onclick="setMainChartMode('profit')"><i class="fa-solid fa-sack-dollar"></i> <span class="lbl-desk">Xalis Qazanc</span><span class="lbl-mob">Qazanc</span></button>
+              <button type="button" class="mode-pill" id="btnModeBrackets" data-mode="brackets" onclick="setMainChartMode('brackets')"><i class="fa-solid fa-tags"></i> <span class="lbl-desk">Qiymət Seqmenti</span><span class="lbl-mob">Qiy. Seqmenti</span></button>
+            </div>
+            <div id="modeHourlyBox" class="main-mode-content">
+              <div class="chart-area" style="padding:6px 16px 2px">
+                <div class="chart-meta-banner" id="hourlySummaryBanner"></div>
+                <div class="chart" id="hourlyChart"></div>
               </div>
+            </div>
+            <div id="modeProfitBox" class="main-mode-content" style="display:none">
+              <div class="chart-area" style="padding:6px 16px 2px">
+                <div class="chart-meta-banner" id="profitSummaryBanner"></div>
+                <div class="chart" id="profitChart"></div>
+              </div>
+            </div>
+            <div id="modeBracketsBox" class="main-mode-content" style="display:none">
+              <div class="brackets-wrap" id="bracketsContainer"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="slider-dots" id="mainSliderDots">
+        <button type="button" class="s-dot main-s-dot active" data-slide="0" onclick="goToMainSlide(0)"></button>
+        <button type="button" class="s-dot main-s-dot" data-slide="1" onclick="goToMainSlide(1)"></button>
+      </div>
+    </div>
 
-              <!-- Məbləğ -->
-              <div class="text-right flex-shrink-0">
-                <div class="text-base sm:text-lg font-black mono ${isReturn ? 'text-rose-600' : 'text-slate-900 dark:text-white'}">
-                  ${isReturn ? '-' : '+'}${Math.abs(mebleg).toFixed(2)} ₼
+    <div class="panel slider-panel" id="sideSliderPanel">
+      <div class="card-head">
+        <div>
+          <div class="card-title" id="sliderTitle"><span class="bar"></span> <span id="sliderTitleText">Ödəniş Bölgüsü</span></div>
+          <div class="card-sub" style="margin-top:5px;margin-left:13px" id="sliderSubtitle">Səhifə 1 / 2 • Nəğd və Nisyə payı</div>
+        </div>
+        <div class="slider-nav">
+          <button type="button" class="slider-arrow" id="slidePrev" onclick="goToSlide(0)" title="Əvvəlki səhifə"><i class="fa-solid fa-chevron-left"></i></button>
+          <button type="button" class="slider-arrow" id="slideNext" onclick="goToSlide(1)" title="Növbəti səhifə"><i class="fa-solid fa-chevron-right"></i></button>
+        </div>
+      </div>
+      <div class="slider-viewport" id="sliderViewport">
+        <div class="slider-track" id="sliderTrack">
+          <div class="slider-slide" id="slideDonut">
+            <div class="donut-body">
+              <div class="donut" id="donut">
+                <div class="donut-hole">
+                  <span class="dh-label">Ümumi</span>
+                  <strong id="donutTotal">0 ₼</strong>
                 </div>
-                <div class="text-[10px] text-slate-400 mono">#${escapeHtml((item.yerli_satis_id || '').substring(0, 8))}</div>
+              </div>
+              <div class="d-legend">
+                <div class="d-row cy"><div class="left"><span class="sw negd"></span> Nəğd satış</div><b id="lgNegd">0.00 ₼</b></div>
+                <div class="d-row vi"><div class="left"><span class="sw nisye"></span> Nisyə satış</div><b id="lgNisye">0.00 ₼</b></div>
               </div>
             </div>
           </div>
-        `;
-      }).join('');
+          <div class="slider-slide" id="slideTop">
+            <div class="top-sort-wrap" id="topSortWrap">
+              <div class="top-sort-pills">
+                <button type="button" class="top-sort-btn active" id="btnSortQty" onclick="setTopSortMode('qty')"><i class="fa-solid fa-boxes-stacked"></i><span>Ədəd / Kq-a görə</span></button>
+                <button type="button" class="top-sort-btn" id="btnSortProfit" onclick="setTopSortMode('qazanc')"><i class="fa-solid fa-coins"></i><span>Qazanca görə (₼)</span></button>
+              </div>
+            </div>
+            <div class="top-list" id="topList"></div>
+          </div>
+        </div>
+      </div>
+      <div class="slider-dots" id="sliderDots">
+        <button type="button" class="s-dot active" data-slide="0" onclick="goToSlide(0)" title="Ödəniş Bölgüsü"></button>
+        <button type="button" class="s-dot" data-slide="1" id="dotSlideTop" onclick="goToSlide(1)" title="Top Məhsullar"></button>
+      </div>
+    </div>
+  </section>
 
-      container.innerHTML = html;
-    }
+  <!-- TABLE -->
+  <section class="panel table-panel anim-cascade delay-5" id="sec-table">
+    <div class="card-head">
+      <div class="table-title-grp">
+        <div class="card-title"><span class="bar"></span> Satış Əməliyyatları</div>
+        <div class="card-sub" style="margin-top:6px;margin-left:13px" id="tblSub">0 nəticə</div>
+      </div>
+      <div class="tbl-search-wrap">
+        <input type="text" id="search" placeholder="Müştəri, məhsul və ya qəbz kodu axtar..." class="tbl-search-input">
+      </div>
+      <div class="tbl-tools">
+        <button class="btn excel-btn" id="btnExcel"><i class="fa-solid fa-file-excel"></i><span>Excel ixrac</span></button>
+        <button class="btn" id="btnCsv"><i class="fa-solid fa-file-csv"></i><span>CSV ixrac</span></button>
+      </div>
+    </div>
+    <div class="tbl-scroll" id="tblScroll">
+      <table>
+        <thead>
+          <tr>
+            <th class="sortable" data-sort="tarix">Tarix <span class="arw">▼</span></th>
+            <th>Müştəri</th>
+            <th>Məhsul</th>
+            <th class="sortable" data-sort="maya" style="text-align:right">Maya <span class="arw">▼</span></th>
+            <th class="sortable" data-sort="satis" style="text-align:right">Satış Qiyməti <span class="arw">▼</span></th>
+            <th class="sortable sorted" data-sort="qazanc" style="text-align:right">Qazanc <span class="arw">▼</span></th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+    <div class="tbl-pagination" id="tblPagination">
+      <div class="tbl-page-info">Göstərilir: <b id="pgVisibleCount">0</b> / <span id="pgTotalCount">0</span> satış</div>
+      <div class="tbl-page-actions">
+        <button type="button" class="btn-load-more" id="btnLoadMore" onclick="loadMoreRows()"><i class="fa-solid fa-angles-down"></i><span>Daha çox göstər (+25)</span></button>
+        <div class="tbl-page-size">
+          <span>Sətir:</span>
+          <div class="page-size-chips">
+            <button type="button" class="ps-chip active" data-step="25" onclick="setPageStep(25)">25</button>
+            <button type="button" class="ps-chip" data-step="50" onclick="setPageStep(50)">50</button>
+            <button type="button" class="ps-chip" data-step="100" onclick="setPageStep(100)">100</button>
+            <button type="button" class="ps-chip" data-step="all" onclick="setPageStep('all')">Hamısı</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
 
-    // 9. Qəbz Detalı Modalı
-    function openReceiptModal(index) {
-      const item = filteredRecords[index];
-      if (!item) return;
+<div class="tooltip" id="tooltip"></div>
 
-      const dateObj = new Date(item.tarix);
-      const isReturn = item.emeliyyat_tipi === 'QAYTARILMA';
-      const mebleg = parseFloat(item.mebleg) || 0;
-      const maya = parseFloat(item.alis_qiymeti) || 0;
-      const qazanc = (item.qazanc !== undefined && item.qazanc !== null) ? parseFloat(item.qazanc) : (mebleg - maya);
+<!-- =====================================================================
+     JAVASCRIPT
+     ===================================================================== -->
+  <!-- MODUL JAVASCRIPT FAYLLARI (Parçalanmış və Sürətli Yüklənmə) -->
+  <script src="./js/app.js"></script>
 
-      document.getElementById('rcpTarix').innerText = dateObj.toLocaleDateString('az-AZ') + ' ' + dateObj.toLocaleTimeString('az-AZ');
-      document.getElementById('rcpId').innerText = 'Qəbz ID: #' + (item.yerli_satis_id || 'Yoxdur');
-      document.getElementById('rcpMehsul').innerText = item.mehsul_adi;
-      document.getElementById('rcpSay').innerText = item.say + ' ədəd';
-      document.getElementById('rcpOdenis').innerText = isReturn ? 'Qaytarılma' : item.odenis_novu;
-      document.getElementById('rcpSahib').innerText = item.sahib_adi || 'Bilinmir';
-      document.getElementById('rcpMaya').innerText = maya.toFixed(2) + ' ₼';
-      document.getElementById('rcpQazanc').innerText = (qazanc >= 0 ? '+' : '') + qazanc.toFixed(2) + ' ₼';
-      document.getElementById('rcpMebleg').innerText = (isReturn ? '-' : '') + Math.abs(mebleg).toFixed(2) + ' ₼';
+  
+  <!-- ============ MOBİL BOTTOM NAVIGATION (ŞƏKİLDƏKİ KİMİ 100% EYNİ) ============ -->
+  <nav class="mobile-bottom-nav" id="mobileBottomNav">
+    <!-- 1. Ana -->
+    <button type="button" class="mob-nav-item active" onclick="handleMobNav('home')" data-target="sec-kpis" id="mobNavHome">
+      <i class="fa-solid fa-house"></i>
+      <span>Ana</span>
+    </button>
 
-      const musteriRow = document.getElementById('rcpMusteriRow');
-      if (item.musteri_adi) {
-        document.getElementById('rcpMusteri').innerText = item.musteri_adi;
-        musteriRow.classList.remove('hidden');
-      } else {
-        musteriRow.classList.add('hidden');
-      }
+    <!-- 2. Analitika -->
+    <button type="button" class="mob-nav-item" onclick="handleMobNav('analytics')" data-target="sec-charts" id="mobNavAnalytics">
+      <i class="fa-solid fa-chart-simple"></i>
+      <span>Analitika</span>
+    </button>
 
-      const modal = document.getElementById('receiptModal');
-      modal.classList.remove('hidden');
-      modal.classList.add('flex');
-    }
+    <!-- 3. Satışlar (Mərkəzi Qabarıq Gradient Kvadrat Düymə) -->
+    <button type="button" class="mob-nav-item mob-hero-item" onclick="handleMobNav('sales')" data-target="sec-table" id="mobNavSales">
+      <div class="mob-hero-btn">
+        <i class="fa-solid fa-receipt"></i>
+      </div>
+      <span>Satışlar</span>
+    </button>
 
-    function closeReceiptModal() {
-      const modal = document.getElementById('receiptModal');
-      modal.classList.add('hidden');
-      modal.classList.remove('flex');
-    }
+    <!-- 4. Bildiriş (Qırmızı Nöqtəli) -->
+    <button type="button" class="mob-nav-item" onclick="handleMobNav('notifications')" data-target="notifModal" id="mobNavNotif">
+      <div class="mob-icon-wrap">
+        <i class="fa-solid fa-bell"></i>
+        <span class="mob-notif-dot" id="mobNotifDot"></span>
+      </div>
+      <span>Bildiriş</span>
+    </button>
 
-    // 10. Qrafiklər (Chart.js)
-    function initChart() {
-      const ctx = document.getElementById('mainChart').getContext('2d');
-      mainChart = new Chart(ctx, {
-        type: 'bar',
-        data: { labels: [], datasets: [] },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            legend: { display: false },
-            tooltip: {
-              callbacks: {
-                label: (context) => ` ${context.parsed.y} ədəd`
-              }
-            }
-          },
-          scales: {
-            x: {
-              grid: { display: false },
-              ticks: { 
-                font: { size: 10, family: 'Outfit' },
-                color: () => document.documentElement.classList.contains('dark') ? '#94a3b8' : '#64748b'
-              }
-            },
-            y: {
-              beginAtZero: true,
-              grid: { 
-                color: () => document.documentElement.classList.contains('dark') ? 'rgba(51, 65, 85, 0.4)' : 'rgba(226, 232, 240, 0.7)' 
-              },
-              ticks: { 
-                font: { size: 10, family: 'Outfit' },
-                color: () => document.documentElement.classList.contains('dark') ? '#94a3b8' : '#64748b',
-                stepSize: 1 
-              }
-            }
-          }
-        }
-      });
-    }
+    <!-- 5. Daha çox (3 Nöqtə) -->
+    <button type="button" class="mob-nav-item" onclick="handleMobNav('more')" data-target="moreMenu" id="mobNavMore">
+      <i class="fa-solid fa-ellipsis"></i>
+      <span>Daha çox</span>
+    </button>
+  </nav>
 
-    function switchChartTab(tab) {
-      activeChartTab = tab;
-      const btnProd = document.getElementById('chartTabProducts');
-      const btnHour = document.getElementById('chartTabHourly');
+  <!-- ============ "DAHA ÇOX" AÇILAN ALT MENYU (BOTTOM SHEET) ============ -->
+  <div class="more-sheet-backdrop" id="moreSheetBackdrop" onclick="closeMoreSheet()"></div>
+  <div class="more-sheet" id="moreSheet">
+    <div class="more-sheet-handle"></div>
+    <div class="more-sheet-header">
+      <div class="more-sheet-title">
+        <i class="fa-solid fa-grid-2"></i> Əlavə Əməliyyatlar &amp; Rejimlər
+      </div>
+      <button type="button" class="more-sheet-close" onclick="closeMoreSheet()"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="more-sheet-grid">
+      <button type="button" class="more-grid-btn loss-btn" onclick="openLossModal(); closeMoreSheet();">
+        <div class="more-grid-ico"><i class="fa-solid fa-triangle-exclamation"></i></div>
+        <div class="more-grid-label">Kassa İtkisi</div>
+        <div class="more-grid-sub" id="moreLossBadge">Zərərli satışlar</div>
+      </button>
 
-      if (tab === 'products') {
-        btnProd.className = "px-3 py-1.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/70 text-indigo-700 dark:text-indigo-300 font-bold text-xs transition";
-        btnHour.className = "px-3 py-1.5 rounded-xl text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 font-semibold text-xs transition";
-      } else {
-        btnHour.className = "px-3 py-1.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/70 text-indigo-700 dark:text-indigo-300 font-bold text-xs transition";
-        btnProd.className = "px-3 py-1.5 rounded-xl text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 font-semibold text-xs transition";
-      }
-      updateChart();
-    }
+      <button type="button" class="more-grid-btn" onclick="openCmdPalette(); closeMoreSheet();">
+        <div class="more-grid-ico"><i class="fa-solid fa-bolt"></i></div>
+        <div class="more-grid-label">Əmrlər (Ctrl+K)</div>
+        <div class="more-grid-sub">Sürətli axtarış</div>
+      </button>
 
-    function updateChart() {
-      if (!mainChart) return;
+      <button type="button" class="more-grid-btn" onclick="toggleFullScreen(); closeMoreSheet();">
+        <div class="more-grid-ico"><i class="fa-solid fa-expand"></i></div>
+        <div class="more-grid-label">Tam Ekran</div>
+        <div class="more-grid-sub">Böyüt / Kiçilt</div>
+      </button>
 
-      if (activeChartTab === 'products') {
-        // Ən çox satılan məhsullar
-        const counts = {};
-        filteredRecords.forEach(item => {
-          if (item.emeliyyat_tipi === 'QAYTARILMA') return;
-          const name = item.mehsul_adi || 'Naməlum';
-          counts[name] = (counts[name] || 0) + (parseFloat(item.say) || 1);
-        });
+      <button type="button" class="more-grid-btn pwa-btn" id="morePwaBtn" onclick="triggerPwaInstall(); closeMoreSheet();">
+        <div class="more-grid-ico"><i class="fa-solid fa-download"></i></div>
+        <div class="more-grid-label">Quraşdır (PWA)</div>
+        <div class="more-grid-sub">Ana ekrana əlavə</div>
+      </button>
 
-        const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 6);
-        mainChart.config.type = 'bar';
-        mainChart.data.labels = sorted.map(i => i[0].length > 14 ? i[0].substring(0, 14) + '...' : i[0]);
-        mainChart.data.datasets = [{
-          label: 'Satış Sayı',
-          data: sorted.map(i => i[1]),
-          backgroundColor: 'rgba(99, 102, 241, 0.85)',
-          borderRadius: 8
-        }];
-      } else {
-        // Saatlıq Aktivlik (08:00 - 22:00)
-        const hours = Array(24).fill(0);
-        filteredRecords.forEach(item => {
-          if (item.emeliyyat_tipi === 'QAYTARILMA') return;
-          const h = new Date(item.tarix).getHours();
-          hours[h] += 1;
-        });
+      <button type="button" class="more-grid-btn" onclick="openSettingsModal(); closeMoreSheet();">
+        <div class="more-grid-ico"><i class="fa-solid fa-gear"></i></div>
+        <div class="more-grid-label">Ayarlar</div>
+        <div class="more-grid-sub">Baza parametrləri</div>
+      </button>
 
-        // 08:00 - 22:00 arasını göstərək
-        const displayHours = [];
-        const displayData = [];
-        for (let i = 8; i <= 22; i++) {
-          displayHours.push(`${i}:00`);
-          displayData.push(hours[i] || 0);
-        }
+      <button type="button" class="more-grid-btn" onclick="toggleTheme(); closeMoreSheet();">
+        <div class="more-grid-ico"><i class="fa-solid fa-circle-half-stroke"></i></div>
+        <div class="more-grid-label">Tema Dəyiş</div>
+        <div class="more-grid-sub">Ağ / Qaranlıq</div>
+      </button>
 
-        mainChart.config.type = 'line';
-        mainChart.data.labels = displayHours;
-        mainChart.data.datasets = [{
-          label: 'Satış Sayı',
-          data: displayData,
-          borderColor: '#10b981',
-          backgroundColor: 'rgba(16, 185, 129, 0.15)',
-          tension: 0.35,
-          fill: true,
-          pointRadius: 3
-        }];
-      }
+      <button type="button" class="more-grid-btn" onclick="exportToExcel(); closeMoreSheet();">
+        <div class="more-grid-ico"><i class="fa-solid fa-file-excel"></i></div>
+        <div class="more-grid-label">Excel İxrac</div>
+        <div class="more-grid-sub">Cədvəli yüklə</div>
+      </button>
 
-      mainChart.update();
-    }
+      <button type="button" class="more-grid-btn" onclick="window.location.href='anbar.html'">
+        <div class="more-grid-ico"><i class="fa-solid fa-boxes-stacked"></i></div>
+        <div class="more-grid-label">Anbar Paneli</div>
+        <div class="more-grid-sub">Məhsullar bazası</div>
+      </button>
 
-    // 11. EXCEL ÇIXARIŞI (WPF Hesabatlar ilə 1:1 eyni və A4 formatına tam uyğun)
-    function exportToExcel() {
-      if (!filteredRecords || filteredRecords.length === 0) {
-        showToast("Xəbərdarlıq", "Çıxarış üçün heç bir qeyd yoxdur.", "amber");
-        return;
-      }
+      <button type="button" class="more-grid-btn" onclick="window.location.href='musteriler.html'">
+        <div class="more-grid-ico"><i class="fa-solid fa-users"></i></div>
+        <div class="more-grid-label">Müştərilər</div>
+        <div class="more-grid-sub">Borclar və qalıqlar</div>
+      </button>
 
-      // Hesabat xülasə məlumatları (WPF HesabatViewModel ilə 1:1 eyni)
-      let totalSatis = 0;
-      let totalMaya = 0;
-      let totalQazanc = 0;
-      let totalSay = 0;
+      <button type="button" class="more-grid-btn" onclick="logout(); closeMoreSheet();" style="border-color:rgba(251,113,133,.3)">
+        <div class="more-grid-ico" style="background:rgba(251,113,133,.15);color:#fb7185"><i class="fa-solid fa-arrow-right-from-bracket"></i></div>
+        <div class="more-grid-label" style="color:#fb7185">Çıxış</div>
+        <div class="more-grid-sub">Hesabı dəyiş</div>
+      </button>
+    </div>
+  </div>
 
-      filteredRecords.forEach(item => {
-        const isReturn = item.emeliyyat_tipi === 'QAYTARILMA';
-        const mebleg = parseFloat(item.mebleg) || 0;
-        const maya = parseFloat(item.alis_qiymeti) || 0;
-        const qazanc = (item.qazanc !== undefined && item.qazanc !== null) ? parseFloat(item.qazanc) : (mebleg - maya);
-        const say = parseFloat(item.say) || 0;
-
-        if (isReturn) {
-          totalSatis -= Math.abs(mebleg);
-          totalMaya -= Math.abs(maya);
-          totalQazanc -= Math.abs(qazanc);
-          totalSay -= Math.abs(say);
-        } else {
-          totalSatis += mebleg;
-          totalMaya += maya;
-          totalQazanc += qazanc;
-          totalSay += say;
-        }
-      });
-
-      const filterStart = document.getElementById('filterStartDate').value;
-      const filterEnd = document.getElementById('filterEndDate').value;
-      let dateRangeStr = "Bütün Tarixlər";
-      if (filterStart && filterEnd) {
-        dateRangeStr = `${filterStart} - ${filterEnd}`;
-      } else if (filterStart) {
-        dateRangeStr = `${filterStart} - dən sonra`;
-      } else if (filterEnd) {
-        dateRangeStr = `${filterEnd} - ə qədər`;
-      }
-
-      const odenisFilter = document.getElementById('filterType').value;
-      const odenisText = (odenisFilter && odenisFilter !== 'ALL') ? ` (${odenisFilter})` : '';
-
-      // Cədvəl sətirlər massivi (WPF Excel xülasə bloku və sütunları)
-      const wsData = [
-        [`Hesabat Tarixi: ${dateRangeStr}${odenisText}`],
-        [`Toplam Satış Qiyməti: ${totalSatis.toFixed(2)} AZN`],
-        [`Toplam Məhsul Dəyəri: ${totalMaya.toFixed(2)} AZN`],
-        [`Toplam Xalis Gəlir: ${totalQazanc.toFixed(2)} AZN`],
-        [`Kassadakı Ümumi Məbləğ: ${totalSatis.toFixed(2)} AZN`],
-        [`Toplam Satılan Miqdar: ${totalSay.toFixed(2)}`],
-        [], // Boş sətir
-        // Sütun Başlıqları (WPF ilə 1:1 eyni)
-        ["Barkod", "Tarix", "Məhsul", "Miqdar", "Satış", "Maya", "Gəlir", "Sahib", "Müştəri"]
-      ];
-
-      // Məlumat sətirləri (WPF Hesabat cədvəli kimi)
-      filteredRecords.forEach(item => {
-        const isReturn = item.emeliyyat_tipi === 'QAYTARILMA';
-        const dateObj = new Date(item.tarix);
-        const tarihText = dateObj.toLocaleDateString('az-AZ', { day: '2-digit', month: '2-digit', year: 'numeric' });
-        
-        let mehsulAd = item.mehsul_adi || '';
-        if (mehsulAd.length > 30) {
-          mehsulAd = mehsulAd.substring(0, 25) + '...';
-        }
-
-        // Barkod / Qəbz nömrəsi (maks 12 simvol, sütunu genişləndirməmək üçün)
-        let barkod = item.yerli_satis_id ? String(item.yerli_satis_id) : '';
-        if (barkod.length > 12) {
-          barkod = barkod.substring(barkod.length - 12);
-        }
-
-        const sayVal = parseFloat(item.say) || 0;
-        const miqdarText = isReturn ? `${sayVal} (Qaytarma)` : sayVal;
-
-        const mebleg = parseFloat(item.mebleg) || 0;
-        const maya = parseFloat(item.alis_qiymeti) || 0;
-        const qazanc = (item.qazanc !== undefined && item.qazanc !== null) ? parseFloat(item.qazanc) : (mebleg - maya);
-
-        wsData.push([
-          barkod,
-          tarihText,
-          mehsulAd,
-          miqdarText,
-          Number((isReturn ? -Math.abs(mebleg) : mebleg).toFixed(2)),
-          Number((isReturn ? -Math.abs(maya) : maya).toFixed(2)),
-          Number((isReturn ? -Math.abs(qazanc) : qazanc).toFixed(2)),
-          item.sahib_adi || '',
-          item.musteri_adi || ''
-        ]);
-      });
-
-      const worksheet = XLSX.utils.aoa_to_sheet(wsData);
-
-      // Sütun enləri (WPF kimi lakonik və A4 vərəqinə tam sığacaq ölçüdə)
-      worksheet['!cols'] = [
-        { wch: 14 }, // Barkod
-        { wch: 13 }, // Tarix
-        { wch: 25 }, // Məhsul
-        { wch: 12 }, // Miqdar
-        { wch: 10 }, // Satış
-        { wch: 10 }, // Maya
-        { wch: 10 }, // Gəlir
-        { wch: 12 }, // Sahib
-        { wch: 14 }  // Müştəri
-      ];
-
-      // A4 Landscape və Səhifəyə Sığdırma Tənzimləmələri
-      worksheet['!pageSetup'] = {
-        orientation: 'landscape',
-        paperSize: 9, // 9 = A4 formatı
-        fitToWidth: 1, // Eninə tam 1 səhifəyə sığdır
-        fitToHeight: 0 // Sətir sayına görə şaquli axış
-      };
-
-      // Çap haşiyələri (margins)
-      worksheet['!margins'] = {
-        left: 0.4,
-        right: 0.4,
-        top: 0.4,
-        bottom: 0.4,
-        header: 0.2,
-        footer: 0.2
-      };
-
-      const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, "Hesabat");
-
-      const now = new Date();
-      const timeStamp = now.getFullYear().toString() +
-        String(now.getMonth() + 1).padStart(2, '0') +
-        String(now.getDate()).padStart(2, '0') +
-        String(now.getHours()).padStart(2, '0') +
-        String(now.getMinutes()).padStart(2, '0') +
-        String(now.getSeconds()).padStart(2, '0');
-
-      const fileName = `hesabat_${timeStamp}.xlsx`;
-      XLSX.writeFile(workbook, fileName);
-
-      showToast("Excel İxrac Edildi", `${fileName} yükləndi.`, "emerald");
-    }
-
-    // 12. Tarix Presetləri
-    function initDatePresetToday() {
-      setDatePreset('today');
-    }
-
-    function setDatePreset(type) {
-      const today = new Date();
-      const todayStr = today.toISOString().split('T')[0];
-
-      ['today', 'yesterday', 'this_week', 'this_month', 'all'].forEach(k => {
-        const btn = document.getElementById(`preset_${k}`);
-        if (btn) {
-          if (k === type) {
-            btn.className = "px-3.5 py-2 rounded-2xl bg-brand-600 text-white transition whitespace-nowrap shadow-xs";
-          } else {
-            btn.className = "px-3.5 py-2 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition whitespace-nowrap";
-          }
-        }
-      });
-
-      if (type === 'today') {
-        document.getElementById('filterStartDate').value = todayStr;
-        document.getElementById('filterEndDate').value = todayStr;
-      } else if (type === 'yesterday') {
-        const y = new Date();
-        y.setDate(y.getDate() - 1);
-        document.getElementById('filterStartDate').value = y.toISOString().split('T')[0];
-        document.getElementById('filterEndDate').value = y.toISOString().split('T')[0];
-      } else if (type === 'this_week') {
-        const firstDay = new Date(today.setDate(today.getDate() - today.getDay() + (today.getDay() === 0 ? -6 : 1)));
-        document.getElementById('filterStartDate').value = firstDay.toISOString().split('T')[0];
-        document.getElementById('filterEndDate').value = new Date().toISOString().split('T')[0];
-      } else if (type === 'this_month') {
-        const firstDate = new Date(today.getFullYear(), today.getMonth(), 1);
-        document.getElementById('filterStartDate').value = firstDate.toISOString().split('T')[0];
-        document.getElementById('filterEndDate').value = new Date().toISOString().split('T')[0];
-      } else if (type === 'all') {
-        document.getElementById('filterStartDate').value = '';
-        document.getElementById('filterEndDate').value = '';
-      }
-
-      applyFilters();
-    }
-
-    function onCustomDateChange() {
-      ['today', 'yesterday', 'this_week', 'this_month', 'all'].forEach(k => {
-        const btn = document.getElementById(`preset_${k}`);
-        if (btn) btn.className = "px-3.5 py-2 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 transition whitespace-nowrap";
-      });
-      applyFilters();
-    }
-
-    // 13. Tənzimləmələr Modalı
-    function openSettingsModal() {
-      const modal = document.getElementById('settingsModal');
-      modal.classList.remove('hidden');
-      modal.classList.add('flex');
-    }
-
-    function closeSettingsModal() {
-      const modal = document.getElementById('settingsModal');
-      modal.classList.add('hidden');
-      modal.classList.remove('flex');
-    }
-
-    function saveSupabaseSettings() {
-      const url = document.getElementById('cfgSupabaseUrl').value.trim();
-      const key = document.getElementById('cfgSupabaseKey').value.trim();
-
-      if (!url || !key) {
-        alert("URL və Anon Key daxil edin.");
-        return;
-      }
-
-      localStorage.setItem('supabase_url', url);
-      localStorage.setItem('supabase_key', key);
-      closeSettingsModal();
-      showToast("Ayarlar Saxlanıldı", "Supabase bağlantısı yenilənir...", "emerald");
-      initSupabase();
-    }
-
-    // 14. Toast Bildiriş
-    let toastTimer = null;
-    function showToast(title, msg, color = 'emerald') {
-      const toast = document.getElementById('toast');
-      const toastTitle = document.getElementById('toastTitle');
-      const toastMsg = document.getElementById('toastMsg');
-      const toastIcon = document.getElementById('toastIcon');
-
-      toastTitle.innerText = title;
-      toastMsg.innerText = msg;
-
-      if (color === 'rose') {
-        toastIcon.className = "w-10 h-10 rounded-xl bg-rose-500/20 text-rose-400 flex items-center justify-center text-base flex-shrink-0";
-      } else if (color === 'amber') {
-        toastIcon.className = "w-10 h-10 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center text-base flex-shrink-0";
-      } else {
-        toastIcon.className = "w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-base flex-shrink-0";
-      }
-
-      toast.classList.remove('-translate-y-28', 'opacity-0');
-      toast.classList.add('translate-y-0', 'opacity-100');
-
-      if (toastTimer) clearTimeout(toastTimer);
-      toastTimer = setTimeout(() => {
-        toast.classList.add('-translate-y-28', 'opacity-0');
-        toast.classList.remove('translate-y-0', 'opacity-100');
-      }, 3500);
-    }
-
-    function escapeHtml(text) {
-      if (!text) return '';
-      return String(text)
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#039;");
-    }
-  </script>
 </body>
 </html>
