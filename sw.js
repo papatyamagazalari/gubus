@@ -3,7 +3,7 @@
    Versiya: 2.1.0 (Modular & High-Speed Mobile Cache)
    ===================================================================== */
 
-const CACHE_NAME = 'papatya-kassa-cache-v2-4-1';
+const CACHE_NAME = 'papatya-kassa-cache-v2-5-0';
 const STATIC_ASSETS = [
   './',
   './index.html',
@@ -113,7 +113,7 @@ self.addEventListener('fetch', event => {
   }
 
   // 2. İkon və Şəkillər üçün: Cache-First ilə dərhal açılış
-  if (req.url.includes('/icons/') || req.url.includes('/css/')) {
+  if (req.url.includes('/icons/')) {
     event.respondWith(
       caches.match(req).then(cachedResponse => {
         if (cachedResponse) return cachedResponse;
@@ -129,9 +129,9 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // 3. HTML Səhifələri və JavaScript (app.js) üçün: Network-First (Şəbəkədən ən son yeniliyi dərhal gətir, oflayndırsa keşdən oxu)
+  // 3. HTML Səhifələri, CSS və JavaScript (app.js) üçün: Network-First (Şəbəkədən ən son yeniliyi dərhal gətir, oflayndırsa keşdən oxu)
   event.respondWith(
-    fetch(req)
+    fetch(req, { cache: 'no-cache' })
       .then(networkResponse => {
         if (networkResponse && networkResponse.status === 200) {
           const clone = networkResponse.clone();
