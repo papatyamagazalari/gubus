@@ -23,6 +23,14 @@
 <!-- SheetJS (Excel Çıxarışı) -->
 <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
 <script>
+  // Sürətli tema yoxlanışı (Ağ temanın dərhal açılması və yadda saxlanması üçün)
+  (function(){
+    try {
+      if (localStorage.getItem('kassa_theme') === 'light') {
+        document.documentElement.classList.add('light-theme');
+      }
+    }catch(e){}
+  })();
   // Sürətli yadda saxlanmış giriş yoxlanışı (ekran yanıb-sönməsinin qarşısını alır)
   (function(){
     try {
@@ -886,7 +894,7 @@ body.light-theme .more-grid-btn {
     <div class="logo" style="margin:0 auto 16px;width:56px;height:56px">
       <i class="fa-solid fa-users" style="font-size:24px"></i>
     </div>
-    <h2 style="font-size:20px;font-weight:800;margin-bottom:6px" id="loginStoreTitle">Papatya</h2>
+    <h2 style="font-size:20px;font-weight:800;margin-bottom:6px" id="loginStoreTitle">Papatya1</h2>
     <p style="font-size:12.5px;color:var(--muted);margin-bottom:20px">Müştərilər &amp; Borc Dəftərinə giriş</p>
     <div class="form-grp" style="text-align:left">
       <label class="form-lbl">Giriş Şifrəsi</label>
@@ -909,7 +917,7 @@ body.light-theme .more-grid-btn {
         <i class="fa-solid fa-users"></i>
       </div>
       <div>
-        <h1 id="appStoreTitle">Papatya — Müştərilər &amp; Borclar</h1>
+        <h1 id="appStoreTitle">Papatya1 — Müştərilər &amp; Borclar</h1>
         <p>Nisyə müştərilərinin, cari borcların və kredit limitlərinin canlı analitikası</p>
       </div>
     </div>
@@ -924,14 +932,11 @@ body.light-theme .more-grid-btn {
       <!-- Real Vaxt Saatı -->
       <div class="clock" id="clock">--:--:--</div>
 
-      <!-- Aktiv Mağaza / Baza Seçici -->
-      <div class="store-badge-selector" title="Aktiv Mağaza / Baza Seçimi">
+      <!-- Aktiv Mağaza -->
+      <div class="store-badge-selector" title="Aktiv Mağaza">
         <i class="fa-solid fa-store" style="color:#22d3ee;font-size:12px"></i>
         <select id="headerStoreSelect" class="store-dropdown" onchange="onHeaderStoreChange(this.value)">
-          <option value="gubus">Papatya (Şərikli)</option>
-          <option value="aburcubur">Abur Çubur</option>
-          <option value="papatya2">Papatya 2</option>
-          <option value="custom">Fərdi Baza</option>
+          <option value="gubus">Papatya1</option>
         </select>
       </div>
 
@@ -966,6 +971,16 @@ body.light-theme .more-grid-btn {
         <i class="fa-solid fa-bell"></i>
         <span class="notif-badge" id="notifBadge" style="display:none">0</span>
       </button>
+
+      <!-- Keşi və Yaddaşı Təmizlə Düyməsi -->
+      <button class="hdr-btn" onclick="forceClearAllCachesAndReload()" title="Keşi və Yaddaşı Təmizlə (Sıfırla)">
+        <i class="fa-solid fa-broom" style="color:#38bdf8"></i>
+      </button>
+
+      <!-- Diaqnostika & Test Düyməsi -->
+      <a href="diaqnostika.html" class="hdr-btn" title="Sistem & Sürət Diaqnostikası (Test)">
+        <i class="fa-solid fa-stethoscope" style="color:#a855f7"></i>
+      </a>
 
       <!-- Ayarlar Düyməsi -->
       <button class="hdr-btn" onclick="openSettingsModal()" title="Ayarlar">
@@ -1157,24 +1172,12 @@ body.light-theme .more-grid-btn {
         <span><i class="fa-solid fa-database" style="color:#22d3ee"></i> Aktiv Baza (Mağaza)</span>
         <span style="font-size:11px;color:#22d3ee;font-weight:700">1-Kliklə Keçid</span>
       </label>
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px" id="modalStoreCards">
-        <div class="store-card-opt" id="cardGubus" onclick="selectProfileInModal('gubus')">
+      <div style="display:grid;grid-template-columns:1fr;gap:10px" id="modalStoreCards">
+        <div class="store-card-opt active" id="cardGubus" onclick="selectProfileInModal('gubus')">
           <div style="font-weight:800;font-size:12.5px;display:flex;align-items:center;gap:6px">
-            <i class="fa-solid fa-users" style="color:#f472b6"></i> Papatya (Şərikli)
+            <i class="fa-solid fa-users" style="color:#f472b6"></i> Papatya1
           </div>
           <div style="font-size:10px;color:var(--muted);margin-top:4px;font-family:monospace">rwsdahmgallpyz...</div>
-        </div>
-        <div class="store-card-opt" id="cardAburCubur" onclick="selectProfileInModal('aburcubur')">
-          <div style="font-weight:800;font-size:12.5px;display:flex;align-items:center;gap:6px">
-            <i class="fa-solid fa-store" style="color:#22d3ee"></i> Abur Çubur
-          </div>
-          <div style="font-size:10px;color:var(--muted);margin-top:4px;font-family:monospace">zcjthobakvppower...</div>
-        </div>
-        <div class="store-card-opt" id="cardPapatya2" onclick="selectProfileInModal('papatya2')">
-          <div style="font-weight:800;font-size:12.5px;display:flex;align-items:center;gap:6px">
-            <i class="fa-solid fa-seedling" style="color:#a855f7"></i> Papatya 2
-          </div>
-          <div style="font-size:10px;color:var(--muted);margin-top:4px;font-family:monospace">ijnbsuupwwyqohy...</div>
         </div>
       </div>
     </div>
@@ -1185,7 +1188,7 @@ body.light-theme .more-grid-btn {
     </div>
     <div class="form-grp">
       <label class="form-lbl"><i class="fa-solid fa-mobile-screen-button"></i> PWA Tətbiq Adı (Ana Ekranda İkon Adı)</label>
-      <input type="text" id="settingPwaName" class="form-inp" placeholder="Məs: Abur Çubur və ya Papatya 2">
+      <input type="text" id="settingPwaName" class="form-inp" placeholder="Məs: Papatya1 Müştərilər">
     </div>
     <div class="form-grp">
       <label class="form-lbl">Supabase Proyekt URL</label>
@@ -1268,58 +1271,13 @@ body.light-theme .more-grid-btn {
 const STORE_PROFILES = {
   'gubus': {
     id: 'gubus',
-    name: 'Papatya (Şərikli)',
+    name: 'Papatya1',
     url: 'https://rwsdahmgallpyzonucpb.supabase.co',
     key: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ3c2RhaG1nYWxscHl6b251Y3BiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk3MDQzMzYsImV4cCI6MjEwNTI4MDMzNn0.jczh4ZJr0-JeBijwmXXXydqycj6YXDARCuxkiyAWKDM'
-  },
-  'aburcubur': {
-    id: 'aburcubur',
-    name: 'Abur Çubur',
-    url: 'https://zcjthobakvppowerkxmv.supabase.co',
-    key: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpjanRob2Jha3ZwcG93ZXJreG12Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk3MTQyNzMsImV4cCI6MjEwNTI5MDI3M30.ZLaSVPvowhwv50cv6W6d8AFYmPpPZ7oS5eZAxZzHI1U'
-  },
-  'papatya2': {
-    id: 'papatya2',
-    name: 'Papatya 2',
-    url: 'https://ijnbsuupwwyqohysrjlc.supabase.co',
-    key: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlqbmJzdXVwd3d5cW9oeXNyamxjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk3MjA1NDUsImV4cCI6MjEwNTI5NjU0NX0.ZjiHo2gOzFdHHK4d7CXYfXrjDcwTyGG9oyQ-E6YtGKY'
   }
 };
 
 function getActiveProfileId() {
-  try {
-    const urlParams = new URLSearchParams(window.location.search || '');
-    const storeParam = urlParams.get('store');
-    if (storeParam && (STORE_PROFILES[storeParam] || storeParam === 'custom')) {
-      return storeParam;
-    }
-  } catch (e) {}
-
-  const sessionSelected = sessionStorage.getItem('kassa_session_profile');
-  if (sessionSelected && (STORE_PROFILES[sessionSelected] || sessionSelected === 'custom')) {
-    return sessionSelected;
-  }
-
-  const currentHref = (window.location.href || '').toLowerCase();
-  const currentPath = (window.location.pathname || '').toLowerCase();
-  if (currentHref.includes('gubus') || currentPath.includes('gubus')) {
-    return 'gubus';
-  }
-  if (currentHref.includes('papatya2') || currentPath.includes('papatya2')) {
-    return 'papatya2';
-  }
-  if (currentHref.includes('aburcubur') || currentPath.includes('aburcubur')) {
-    return 'aburcubur';
-  }
-
-  let p = localStorage.getItem('kassa_active_profile');
-  if (p && (STORE_PROFILES[p] || p === 'custom')) return p;
-
-  const savedUrl = (localStorage.getItem('kassa_supabase_url') || '').toLowerCase();
-  if (savedUrl.includes('rwsdahmgallpyzonucpb')) return 'gubus';
-  if (savedUrl.includes('ijnbsuupwwyqohysrjlc')) return 'papatya2';
-  if (savedUrl.includes('zcjthobakvppowerkxmv')) return 'aburcubur';
-
   return 'gubus';
 }
 
@@ -1345,8 +1303,8 @@ function getActiveStoreName() {
   const pid = getActiveProfileId();
   if (STORE_PROFILES[pid]) return STORE_PROFILES[pid].name;
   const saved = localStorage.getItem('kassa_store_name');
-  if (saved && saved !== 'Papatya' && saved !== 'Satış İdarəetmə Paneli' && saved !== 'Papatya — Müştərilər & Borclar') return saved;
-  return 'Papatya (Şərikli)';
+  if (saved && saved !== 'Papatya' && saved !== 'Papatya (Şərikli)' && saved !== 'Satış İdarəetmə Paneli' && saved !== 'Papatya — Müştərilər & Borclar') return saved;
+  return 'Papatya1';
 }
 
 function updateStoreTitle() {
@@ -1370,11 +1328,7 @@ function syncStoreSelectUI() {
   if (sel) sel.value = pid;
 
   const cardG = $('cardGubus');
-  const cardA = $('cardAburCubur');
-  const cardP = $('cardPapatya2');
   if (cardG) cardG.classList.toggle('active', pid === 'gubus');
-  if (cardA) cardA.classList.toggle('active', pid === 'aburcubur');
-  if (cardP) cardP.classList.toggle('active', pid === 'papatya2');
 }
 
 function switchStoreProfile(profileId, triggerReload = true) {
@@ -1443,11 +1397,17 @@ let notifications = [];
 /* ============ SAAT VƏ SƏS SİSTEMİ ============ */
 function initClock() {
   const update = () => {
-    const d = new Date();
-    $('clock').textContent = pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds());
+    if (!document.hidden) {
+      const d = new Date();
+      const el = $('clock');
+      if (el) el.textContent = pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds());
+    }
   };
   update();
   setInterval(update, 1000);
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) update();
+  });
 }
 
 function initSound() {
@@ -1513,18 +1473,35 @@ function playChime(type = 'insert') {
 /* ============ TEMA DƏYİŞMƏ ============ */
 function initTheme() {
   const saved = localStorage.getItem('kassa_theme');
-  if (saved === 'light') {
+  const isLight = (saved === 'light');
+  if (isLight) {
+    document.documentElement.classList.add('light-theme');
     document.body.classList.add('light-theme');
-    $('themeIcon').className = 'fa-solid fa-moon';
-    $('themeIcon').style.color = '#8b5cf6';
+    const icon = $('themeIcon');
+    if (icon) {
+      icon.className = 'fa-solid fa-moon';
+      icon.style.color = '#8b5cf6';
+    }
+  } else {
+    document.documentElement.classList.remove('light-theme');
+    document.body.classList.remove('light-theme');
+    const icon = $('themeIcon');
+    if (icon) {
+      icon.className = 'fa-solid fa-sun';
+      icon.style.color = '#fbbf24';
+    }
   }
 }
 
 function toggleTheme() {
   const isLight = document.body.classList.toggle('light-theme');
+  document.documentElement.classList.toggle('light-theme', isLight);
   localStorage.setItem('kassa_theme', isLight ? 'light' : 'dark');
-  $('themeIcon').className = isLight ? 'fa-solid fa-moon' : 'fa-solid fa-sun';
-  $('themeIcon').style.color = isLight ? '#8b5cf6' : '#fbbf24';
+  const icon = $('themeIcon');
+  if (icon) {
+    icon.className = isLight ? 'fa-solid fa-moon' : 'fa-solid fa-sun';
+    icon.style.color = isLight ? '#8b5cf6' : '#fbbf24';
+  }
   renderTable();
 }
 
@@ -1708,6 +1685,7 @@ function initApp() {
   initSound();
   initTheme();
   loadNotifications();
+  initAutoSelfHeal();
 
   const url = getActiveSupabaseUrl();
   const key = getActiveSupabaseKey();
@@ -2393,7 +2371,89 @@ function closeMoreSheet() {
   document.getElementById('mobNavHome')?.classList.add('active');
 }
 
+/* =====================================================================
+   KEŞ VƏ YADDAŞ TƏMİZLƏYİCİSİ (CACHE & MEMORY CLEANER)
+   ===================================================================== */
+async function forceClearAllCachesAndReload(silent = false) {
+  if (!silent && typeof showToast === 'function') {
+    showToast("🧹 Keş Təmizlənir...", "Bütün köhnə keş və yaddaş sıfırlanır, zəhmət olmasa gözləyin", 'update');
+  }
+
+  try {
+    // 1. Service Worker-ləri ləğv et və keşləri dərhal silməsini əmr et
+    if ('serviceWorker' in navigator) {
+      const registrations = await navigator.serviceWorker.getRegistrations();
+      for (const reg of registrations) {
+        try {
+          if (reg.active) {
+            reg.active.postMessage({ type: 'CLEAR_ALL_CACHES' });
+          }
+          await reg.unregister();
+        } catch(e) {}
+      }
+    }
+
+    // 2. Cache Storage-də olan bütün keşləri dərhal birdəfəlik sil
+    if ('caches' in window) {
+      try {
+        const keys = await caches.keys();
+        await Promise.all(keys.map(k => caches.delete(k)));
+      } catch(e) {}
+    }
+
+    // 3. Lazımsız bildiriş və müvəqqəti sessiya zibillərini təmizlə (şifrə və giriş saxlanılır!)
+    try {
+      localStorage.removeItem('kassa_notifications');
+      localStorage.removeItem('musteri_notifications');
+      sessionStorage.clear();
+    } catch(e) {}
+
+  } catch(e) {
+    console.warn("Keş təmizlənməsi zamanı xəbərdarlıq:", e);
+  }
+
+  // 4. Ən son versiyanı birbaşa serverdən oxumaq üçün vaxt damğası ilə tam yenilə
+  const cleanUrl = window.location.origin + window.location.pathname + '?reload=' + Date.now();
+  window.location.replace(cleanUrl);
+}
+
+/* =====================================================================
+   AVTOMATİK ÖZÜNÜ TƏMİZLƏMƏ VƏ YADDAŞ QORUYUCUSU (AUTO SELF-HEAL)
+   ===================================================================== */
+function initAutoSelfHeal() {
+  const PAGE_START_TIME = Date.now();
+  let lastUserActivity = Date.now();
+
+  const resetActivity = () => { lastUserActivity = Date.now(); };
+  ['click', 'keydown', 'touchstart', 'mousemove'].forEach(evt => {
+    window.addEventListener(evt, resetActivity, { passive: true });
+  });
+
+  // Hər 10 dəqiqədən bir vəziyyəti yoxlayırıq
+  setInterval(() => {
+    const now = new Date();
+    const hours = now.getHours();
+    const uptimeHours = (Date.now() - PAGE_START_TIME) / (1000 * 60 * 60);
+    const idleMinutes = (Date.now() - lastUserActivity) / (1000 * 60);
+
+    const isNightTime = (hours >= 4 && hours < 6);
+    const isLongUptime = uptimeHours >= 24 && idleMinutes >= 30;
+    const isNightAutoHeal = isNightTime && uptimeHours >= 6 && idleMinutes >= 20;
+
+    const isModalOpen = document.querySelector('.modal:not(.hidden), .sheet:not(.hidden)');
+
+    if ((isLongUptime || isNightAutoHeal) && !isModalOpen) {
+      console.log('🔄 Auto Self-Heal: Yaddaş və keş avtomatik sıfırlanır...');
+      forceClearAllCachesAndReload(true);
+    }
+  }, 10 * 60 * 1000);
+}
+
+window.forceClearAllCachesAndReload = forceClearAllCachesAndReload;
+
 window.addEventListener('DOMContentLoaded', () => {
+  initTheme();
+  initClock();
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.getRegistrations().then(regs => regs.forEach(r => r.update())).catch(() => {});
   }
@@ -2476,6 +2536,18 @@ window.addEventListener('DOMContentLoaded', () => {
       <div class="more-grid-ico" style="background:rgba(99,102,241,.15);color:#818cf8"><i class="fa-solid fa-gear"></i></div>
       <div class="more-grid-label">Ayarlar</div>
       <div class="more-grid-sub">Baza parametrləri</div>
+    </button>
+
+    <button type="button" class="more-grid-btn" onclick="forceClearAllCachesAndReload(); closeMoreSheet();" style="border-color:rgba(56,189,248,.3)">
+      <div class="more-grid-ico" style="background:rgba(56,189,248,.15);color:#38bdf8"><i class="fa-solid fa-broom"></i></div>
+      <div class="more-grid-label" style="color:#38bdf8">Keşi Təmizlə</div>
+      <div class="more-grid-sub">Yaddaşı sıfırla</div>
+    </button>
+
+    <button type="button" class="more-grid-btn" onclick="window.location.href='diaqnostika.html'" style="border-color:rgba(168,85,247,.3)">
+      <div class="more-grid-ico" style="background:rgba(168,85,247,.15);color:#a855f7"><i class="fa-solid fa-stethoscope"></i></div>
+      <div class="more-grid-label" style="color:#a855f7">Diaqnostika</div>
+      <div class="more-grid-sub">Sürət və xəta testi</div>
     </button>
 
     <button type="button" class="more-grid-btn" onclick="logout(); closeMoreSheet();" style="border-color:rgba(251,113,133,.3)">

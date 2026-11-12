@@ -4,24 +4,10 @@
 const STORE_PROFILES = {
   'gubus': {
     id: 'gubus',
-    name: 'Papatya (Şərikli)',
+    name: 'Papatya1',
     email: '',
     url: 'https://rwsdahmgallpyzonucpb.supabase.co',
     key: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ3c2RhaG1nYWxscHl6b251Y3BiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk3MDQzMzYsImV4cCI6MjEwNTI4MDMzNn0.jczh4ZJr0-JeBijwmXXXydqycj6YXDARCuxkiyAWKDM'
-  },
-  'aburcubur': {
-    id: 'aburcubur',
-    name: 'Abur Çubur',
-    email: '',
-    url: 'https://zcjthobakvppowerkxmv.supabase.co',
-    key: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpjanRob2Jha3ZwcG93ZXJreG12Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk3MTQyNzMsImV4cCI6MjEwNTI5MDI3M30.ZLaSVPvowhwv50cv6W6d8AFYmPpPZ7oS5eZAxZzHI1U'
-  },
-  'papatya2': {
-    id: 'papatya2',
-    name: 'Papatya 2',
-    email: '',
-    url: 'https://ijnbsuupwwyqohysrjlc.supabase.co',
-    key: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlqbmJzdXVwd3d5cW9oeXNyamxjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk3MjA1NDUsImV4cCI6MjEwNTI5NjU0NX0.ZjiHo2gOzFdHHK4d7CXYfXrjDcwTyGG9oyQ-E6YtGKY'
   }
 };
 
@@ -32,36 +18,6 @@ function getActiveStoreEmail() {
 }
 
 function getActiveProfileId() {
-  // 1. Əgər istifadəçi cari sessiyada ekrandakı menyudan xüsusi seçim edibsə:
-  const sessionSelected = sessionStorage.getItem('kassa_session_profile');
-  if (sessionSelected && (STORE_PROFILES[sessionSelected] || sessionSelected === 'custom')) {
-    return sessionSelected;
-  }
-
-  // 2. Link / URL əsasında avtomatik mağaza təyini (DƏQİQ VƏ BİRBAŞA)
-  const href = (window.location.href || '').toLowerCase();
-  const path = (window.location.pathname || '').toLowerCase();
-
-  if (href.includes('gubus') || path.includes('gubus') || href.includes('store=gubus')) {
-    return 'gubus';
-  }
-  if (href.includes('papatya2') || path.includes('papatya2') || href.includes('store=papatya2')) {
-    return 'papatya2';
-  }
-  if (href.includes('aburcubur') || path.includes('aburcubur') || href.includes('store=aburcubur')) {
-    return 'aburcubur';
-  }
-
-  // 3. Əgər fərdi server və ya test mühitidirsə, yaddaşdan oxu
-  let p = localStorage.getItem('kassa_active_profile');
-  if (p && (STORE_PROFILES[p] || p === 'custom')) return p;
-
-  const savedUrl = (localStorage.getItem('kassa_supabase_url') || '').toLowerCase();
-  if (savedUrl.includes('rwsdahmgallpyzonucpb')) return 'gubus';
-  if (savedUrl.includes('ijnbsuupwwyqohysrjlc')) return 'papatya2';
-  if (savedUrl.includes('zcjthobakvppowerkxmv')) return 'aburcubur';
-
-  // 4. Default olaraq Gubus / Papatya (Şərikli) bazası
   return 'gubus';
 }
 
@@ -87,8 +43,8 @@ function getActiveStoreName() {
   const pid = getActiveProfileId();
   if (STORE_PROFILES[pid]) return STORE_PROFILES[pid].name;
   const saved = localStorage.getItem('kassa_store_name');
-  if (saved && saved !== 'Satış İdarəetmə Paneli' && saved !== 'Papatya' && saved !== 'Papatya — Anbar İdarəetməsi') return saved;
-  return 'Papatya (Şərikli)';
+  if (saved && saved !== 'Satış İdarəetmə Paneli' && saved !== 'Papatya' && saved !== 'Papatya (Şərikli)' && saved !== 'Papatya — Anbar İdarəetməsi') return saved;
+  return 'Papatya1';
 }
 
 function getActivePwaName() {
@@ -100,7 +56,7 @@ function getActivePwaName() {
   if (saved && saved.trim()) return saved.trim();
 
   const storeName = getActiveStoreName();
-  return storeName ? `${storeName} Kassa` : 'Papatya Kassa';
+  return storeName ? `${storeName} Kassa` : 'Papatya1 Kassa';
 }
 
 function updateManifest() {
@@ -152,11 +108,7 @@ function syncStoreSelectUI() {
   if (sel) sel.value = pid;
 
   const cardG = $('cardGubus');
-  const cardA = $('cardAburCubur');
-  const cardP = $('cardPapatya2');
   if (cardG) cardG.classList.toggle('active', pid === 'gubus');
-  if (cardA) cardA.classList.toggle('active', pid === 'aburcubur');
-  if (cardP) cardP.classList.toggle('active', pid === 'papatya2');
 }
 
 function switchStoreProfile(profileId, triggerReload = true) {
@@ -867,9 +819,9 @@ function closeSettingsModal() {
 }
 
 function resetDefaultCredentials() {
-  if (confirm("Standart parametrlərə (Papatya Şərikli) qaytarmaq istəyirsiniz?")) {
+  if (confirm("Standart parametrlərə (Papatya1) qaytarmaq istəyirsiniz?")) {
     selectProfileInModal('gubus');
-    if ($('settingPwaName')) $('settingPwaName').value = 'Papatya Kassa';
+    if ($('settingPwaName')) $('settingPwaName').value = 'Papatya1 Kassa';
     $('settingPassword').value = 'Gubus0123456789-';
   }
 }
@@ -3344,13 +3296,25 @@ function applyTheme(theme) {
 }
 
 /* =====================================================================
-   20) SAAT VƏ AÇILIŞ
+   20) SAAT VƏ AÇILIŞ (Yaddaş & Prosessor Optimizasiyalı)
    ===================================================================== */
 (function tick(){
-  const d = new Date();
-  $('clock').textContent = pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds());
-  setTimeout(tick, 1000);
+  if (!document.hidden) {
+    const d = new Date();
+    const clk = $('clock');
+    if (clk) clk.textContent = pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds());
+  }
+  // Sekmə arxa planda olanda taymeri 10 saniyəyə qədər zəiflədirik (CPU və RAM qorunması)
+  setTimeout(tick, document.hidden ? 10000 : 1000);
 })();
+
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) {
+    const d = new Date();
+    const clk = $('clock');
+    if (clk) clk.textContent = pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds());
+  }
+});
 
 function startApplication() {
   initTheme();
@@ -3365,6 +3329,7 @@ function startApplication() {
   setRange(iso(first), iso(TODAY), '00:00', '23:59');
   checkAuth();
   initPwaFullscreen();
+  initAutoSelfHeal();
 }
 
 if (document.readyState === 'loading') {
@@ -3644,7 +3609,9 @@ const CMD_ITEMS = [
   { title: 'Kassa İtkisi Detalları', sub: 'Detallı itki analizi pəncərəsi', icon: 'fa-list-check', action: () => openLossModal() },
   { title: 'Anbar Paneli', sub: 'Məhsullar və qalıqlar bazası', icon: 'fa-boxes-stacked', action: () => { window.location.href = 'anbar.html'; } },
   { title: 'Müştərilər Paneli', sub: 'Müştərilər və borclar bazası', icon: 'fa-users', action: () => { window.location.href = 'musteriler.html'; } },
-  { title: 'Tam Ekran', sub: 'Ekranı böyüt və ya kiçilt', icon: 'fa-expand', action: () => toggleFullScreen() }
+  { title: 'Tam Ekran', sub: 'Ekranı böyüt və ya kiçilt', icon: 'fa-expand', action: () => toggleFullScreen() },
+  { title: 'Keşi və Yaddaşı Təmizlə', sub: 'Bütün köhnə keşləri sil və səhifəni tam sıfırla', icon: 'fa-broom', action: () => forceClearAllCachesAndReload() },
+  { title: 'Diaqnostika və Sürət Testi', sub: 'GPU, şəbəkə və brauzer xətalarını test et', icon: 'fa-stethoscope', action: () => { window.location.href = 'diaqnostika.html'; } }
 ];
 
 function openCmdPalette() {
@@ -3845,5 +3812,137 @@ const cmdOverlayEl = $('cmdOverlay');
 if (cmdOverlayEl) {
   cmdOverlayEl.addEventListener('click', e => {
     if (e.target === cmdOverlayEl) closeCmdPalette();
+  });
+}
+
+/* =====================================================================
+   28) KEŞ VƏ YADDAŞ TƏMİZLƏYİCİSİ (CACHE & MEMORY CLEANER)
+   ===================================================================== */
+async function forceClearAllCachesAndReload(silent = false) {
+  if (!silent && typeof showToast === 'function') {
+    showToast("🧹 Keş Təmizlənir...", "Bütün köhnə keş və yaddaş sıfırlanır, zəhmət olmasa gözləyin", true);
+  }
+
+  try {
+    // 1. Service Worker-ləri ləğv et və keşləri dərhal silməsini əmr et
+    if ('serviceWorker' in navigator) {
+      const registrations = await navigator.serviceWorker.getRegistrations();
+      for (const reg of registrations) {
+        try {
+          if (reg.active) {
+            reg.active.postMessage({ type: 'CLEAR_ALL_CACHES' });
+          }
+          await reg.unregister();
+        } catch(e) {}
+      }
+    }
+
+    // 2. Cache Storage-də olan bütün keşləri dərhal birdəfəlik sil
+    if ('caches' in window) {
+      try {
+        const keys = await caches.keys();
+        await Promise.all(keys.map(k => caches.delete(k)));
+      } catch(e) {}
+    }
+
+    // 3. Lazımsız köhnə bildiriş və müvəqqəti sessiya zibillərini təmizlə (şifrə və giriş saxlanılır!)
+    try {
+      localStorage.removeItem('kassa_notifications');
+      sessionStorage.clear();
+    } catch(e) {}
+
+  } catch(e) {
+    console.warn("Keş təmizlənməsi zamanı xəbərdarlıq:", e);
+  }
+
+  // 4. Ən son versiyanı birbaşa serverdən oxumaq üçün vaxt damğası ilə tam yenilə
+  const cleanUrl = window.location.origin + window.location.pathname + '?reload=' + Date.now();
+  window.location.replace(cleanUrl);
+}
+
+/* =====================================================================
+   29) AVTOMATİK ÖZÜNÜ TƏMİZLƏMƏ VƏ YADDAŞ QORUYUCUSU (AUTO SELF-HEAL)
+   ===================================================================== */
+function initAutoSelfHeal() {
+  const PAGE_START_TIME = Date.now();
+  let lastUserActivity = Date.now();
+
+  const resetActivity = () => { lastUserActivity = Date.now(); };
+  ['click', 'keydown', 'touchstart', 'mousemove'].forEach(evt => {
+    window.addEventListener(evt, resetActivity, { passive: true });
+  });
+
+  // Hər 10 dəqiqədən bir vəziyyəti yoxlayırıq
+  setInterval(() => {
+    const now = new Date();
+    const hours = now.getHours();
+    const uptimeHours = (Date.now() - PAGE_START_TIME) / (1000 * 60 * 60);
+    const idleMinutes = (Date.now() - lastUserActivity) / (1000 * 60);
+
+    // Qayda: Səhifə 24 saatdan çox fasiləsiz açıq qalıbsa VƏ istifadəçi 30 dəqiqədir toxunmursa
+    // VƏ YA gecə saat 04:00 - 05:59 arasıdırsa, ən azı 6 saat açıqdırsa və 20 dəqiqədir heç kim toxunmayıbsa
+    const isNightTime = (hours >= 4 && hours < 6);
+    const isLongUptime = uptimeHours >= 24 && idleMinutes >= 30;
+    const isNightAutoHeal = isNightTime && uptimeHours >= 6 && idleMinutes >= 20;
+
+    const isModalOpen = document.querySelector('.modal:not(.hidden), .sheet:not(.hidden)');
+
+    if ((isLongUptime || isNightAutoHeal) && !isModalOpen) {
+      console.log('🔄 Auto Self-Heal: Yaddaş və keş avtomatik sıfırlanır...');
+      forceClearAllCachesAndReload(true);
+    }
+  }, 10 * 60 * 1000);
+}
+
+window.forceClearAllCachesAndReload = forceClearAllCachesAndReload;
+
+
+/* =====================================================================
+   30) QLOBAL WINDOW ƏLAQƏLƏNDİRMƏSİ (HTML onclick uyğunluğu & Modul Təhlükəsizliyi)
+   ===================================================================== */
+if (typeof window !== 'undefined') {
+  Object.assign(window, {
+    verifyPassword: typeof verifyPassword !== 'undefined' ? verifyPassword : null,
+    openSettingsModal: typeof openSettingsModal !== 'undefined' ? openSettingsModal : null,
+    closeSettingsModal: typeof closeSettingsModal !== 'undefined' ? closeSettingsModal : null,
+    saveSettingsFromModal: typeof saveSettingsFromModal !== 'undefined' ? saveSettingsFromModal : null,
+    logout: typeof logout !== 'undefined' ? logout : null,
+    refreshData: typeof refreshData !== 'undefined' ? refreshData : null,
+    exportToExcel: typeof exportToExcel !== 'undefined' ? exportToExcel : null,
+    goToSlide: typeof goToSlide !== 'undefined' ? goToSlide : null,
+    goToMainSlide: typeof goToMainSlide !== 'undefined' ? goToMainSlide : null,
+    setMainChartMode: typeof setMainChartMode !== 'undefined' ? setMainChartMode : null,
+    setTopSortMode: typeof setTopSortMode !== 'undefined' ? setTopSortMode : null,
+    openDeleteCategoryModal: typeof openDeleteCategoryModal !== 'undefined' ? openDeleteCategoryModal : null,
+    confirmDeleteCategory: typeof confirmDeleteCategory !== 'undefined' ? confirmDeleteCategory : null,
+    closeDeleteCategoryModal: typeof closeDeleteCategoryModal !== 'undefined' ? closeDeleteCategoryModal : null,
+    openLossModal: typeof openLossModal !== 'undefined' ? openLossModal : null,
+    closeLossModal: typeof closeLossModal !== 'undefined' ? closeLossModal : null,
+    exportLossExcel: typeof exportLossExcel !== 'undefined' ? exportLossExcel : null,
+    filterLossSalesOnly: typeof filterLossSalesOnly !== 'undefined' ? filterLossSalesOnly : null,
+    toggleNotificationsModal: typeof toggleNotificationsModal !== 'undefined' ? toggleNotificationsModal : null,
+    closeNotificationsModal: typeof closeNotificationsModal !== 'undefined' ? closeNotificationsModal : null,
+    clearAllNotifications: typeof clearAllNotifications !== 'undefined' ? clearAllNotifications : null,
+    toggleTheme: typeof toggleTheme !== 'undefined' ? toggleTheme : null,
+    toggleSound: typeof toggleSound !== 'undefined' ? toggleSound : null,
+    toggleFullScreen: typeof toggleFullScreen !== 'undefined' ? toggleFullScreen : null,
+    openCmdPalette: typeof openCmdPalette !== 'undefined' ? openCmdPalette : null,
+    forceClearAllCachesAndReload: typeof forceClearAllCachesAndReload !== 'undefined' ? forceClearAllCachesAndReload : null,
+    triggerPwaInstall: typeof triggerPwaInstall !== 'undefined' ? triggerPwaInstall : null,
+    selectProfileInModal: typeof selectProfileInModal !== 'undefined' ? selectProfileInModal : null,
+    testSupabaseInHtml: typeof testSupabaseInHtml !== 'undefined' ? testSupabaseInHtml : null,
+    resetDefaultCredentials: typeof resetDefaultCredentials !== 'undefined' ? resetDefaultCredentials : null,
+    togglePasswordVisibility: typeof togglePasswordVisibility !== 'undefined' ? togglePasswordVisibility : null,
+    toggleSettingsKeyVisibility: typeof toggleSettingsKeyVisibility !== 'undefined' ? toggleSettingsKeyVisibility : null,
+    toggleSettingsPwdVisibility: typeof toggleSettingsPwdVisibility !== 'undefined' ? toggleSettingsPwdVisibility : null,
+    testSoundInSettings: typeof testSoundInSettings !== 'undefined' ? testSoundInSettings : null,
+    setPageStep: typeof setPageStep !== 'undefined' ? setPageStep : null,
+    loadMoreRows: typeof loadMoreRows !== 'undefined' ? loadMoreRows : null,
+    closeReceiptModal: typeof closeReceiptModal !== 'undefined' ? closeReceiptModal : null,
+    printReceiptDirect: typeof printReceiptDirect !== 'undefined' ? printReceiptDirect : null,
+    downloadReceiptImage: typeof downloadReceiptImage !== 'undefined' ? downloadReceiptImage : null,
+    shareReceiptWhatsApp: typeof shareReceiptWhatsApp !== 'undefined' ? shareReceiptWhatsApp : null,
+    closeMoreSheet: typeof closeMoreSheet !== 'undefined' ? closeMoreSheet : null,
+    handleMobNav: typeof handleMobNav !== 'undefined' ? handleMobNav : null
   });
 }
